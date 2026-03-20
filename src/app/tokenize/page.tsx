@@ -27,7 +27,10 @@ const CATEGORY_OPTIONS: { value: AssetCategory; label: string; icon: React.React
   { value: "real-estate", label: "Real Estate", icon: <Building2 className="h-4 w-4" /> },
   { value: "infrastructure", label: "Infrastructure", icon: <Zap className="h-4 w-4" /> },
   { value: "art", label: "Art", icon: <Palette className="h-4 w-4" /> },
-  { value: "wine", label: "Fine Wine", icon: <Wine className="h-4 w-4" /> },
+  { value: "wine", label: "Wine & Spirits", icon: <Wine className="h-4 w-4" /> },
+  { value: "collectibles", label: "Collectibles", icon: <ArrowRight className="h-4 w-4" /> },
+  { value: "private-equity", label: "Private Equity", icon: <ArrowRight className="h-4 w-4" /> },
+  { value: "commodities", label: "Commodities", icon: <ArrowRight className="h-4 w-4" /> },
 ];
 
 const PLACEHOLDER_IMAGES: Record<AssetCategory, string> = {
@@ -35,6 +38,9 @@ const PLACEHOLDER_IMAGES: Record<AssetCategory, string> = {
   infrastructure: "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80",
   art: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800&q=80",
   wine: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80",
+  collectibles: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800&q=80",
+  "private-equity": "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?w=800&q=80",
+  commodities: "https://images.unsplash.com/photo-1610375461246-83df859d849d?w=800&q=80",
 };
 
 interface FormState {

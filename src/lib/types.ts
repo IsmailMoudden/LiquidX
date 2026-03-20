@@ -1,4 +1,11 @@
-export type AssetCategory = "real-estate" | "infrastructure" | "art" | "wine";
+export type AssetCategory =
+  | "real-estate"
+  | "infrastructure"
+  | "art"
+  | "wine"
+  | "collectibles"
+  | "private-equity"
+  | "commodities";
 
 export interface Asset {
   id: string;

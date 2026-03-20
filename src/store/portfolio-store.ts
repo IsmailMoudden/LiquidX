@@ -190,7 +190,7 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
       resetPortfolio: () => set(INITIAL_STATE),
     }),
     {
-      name: "liquidx-portfolio",
+      name: "liquidx-portfolio-v2",
     }
   )
 );

@@ -51,22 +51,34 @@ export function AssetCard({ asset }: AssetCardProps) {
             {asset.description}
           </p>
 
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {asset.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/12 bg-white/6 px-2.5 py-0.5 text-xs font-medium text-white/70"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="rounded-xl bg-white/4 p-2.5">
-              <p className="text-xs text-white/30 mb-0.5">Valuation</p>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="rounded-xl bg-white/5 border border-white/6 p-2.5">
+              <p className="text-xs text-white/35 mb-0.5">Valuation</p>
               <p className="text-sm font-semibold text-primary">
                 {formatCurrency(asset.totalValue, true)}
               </p>
             </div>
-            <div className="rounded-xl bg-white/4 p-2.5">
-              <p className="text-xs text-white/30 mb-0.5">Token</p>
-              <p className="text-sm font-semibold text-primary">
+            <div className="rounded-xl bg-white/5 border border-white/6 p-2.5">
+              <p className="text-xs text-white/35 mb-0.5">Token</p>
+              <p className="text-sm font-semibold text-white">
                 ${asset.tokenPrice}
               </p>
             </div>
-            <div className="rounded-xl bg-white/4 p-2.5">
-              <p className="text-xs text-white/30 mb-0.5">Yield</p>
+            <div className="rounded-xl bg-white/5 border border-white/6 p-2.5">
+              <p className="text-xs text-white/35 mb-0.5">Yield</p>
               <p className="text-sm font-semibold text-primary flex items-center gap-0.5">
                 <TrendingUp className="h-3 w-3" />
                 {formatPercent(asset.projectedYield)}
@@ -77,7 +89,7 @@ export function AssetCard({ asset }: AssetCardProps) {
           {/* Funding progress */}
           <div>
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-white/30">Funded</span>
+              <span className="text-white/40">Funded</span>
               <span className="font-semibold text-primary">{asset.funded}%</span>
             </div>
             <Progress value={asset.funded} className="h-1.5 bg-white/8" />
