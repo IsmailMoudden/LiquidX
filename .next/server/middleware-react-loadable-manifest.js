@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"lib/xrpl.ts -> xrpl\":{\"id\":\"lib/xrpl.ts -> xrpl\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_xrpl_dist_npm_index_js.js\"]}}"

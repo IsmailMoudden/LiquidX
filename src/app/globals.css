@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 4%; /* near-black like Cassis */
+    --foreground: 0 0% 96%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 174 100% 45%; /* blue-teal #00e5cc */
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 174 100% 45%;
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 174 100% 45%;
+    --radius: 0.75rem;
+    --chart-1: 174 100% 45%;
+    --chart-2: 0 0% 20%;
+    --chart-3: 0 0% 12%;
+    --chart-4: 0 0% 80%;
+    --chart-5: 0 0% 14%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", "SF Pro Display", "Helvetica Neue", Arial, system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(135deg, #00e5cc 0%, #0099ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 60px 0 rgba(0, 229, 204, 0.15);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px 0 rgba(0, 229, 204, 0.20);
+  }
+
+  .background-grid {
+    background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.02) 0px,
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 60px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.02) 0px,
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 60px
+      );
+  }
+
+  .hero-blob {
+    background: radial-gradient(ellipse at center, rgba(0, 229, 204, 0.25) 0%, transparent 70%);
+  }
+
+  .hero-blob-2 {
+    background: radial-gradient(ellipse at center, rgba(0, 153, 255, 0.15) 0%, transparent 70%);
+  }
+
+  .cassis-nav {
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .feature-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: border-color 0.3s ease, transform 0.3s ease, background 0.3s ease;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(0, 229, 204, 0.3);
+    background: rgba(0, 229, 204, 0.04);
+    transform: translateY(-4px);
+  }
+
+  @keyframes blob-float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -20px) scale(1.05); }
+    66% { transform: translate(-20px, 15px) scale(0.97); }
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-blob {
+    animation: blob-float 10s ease-in-out infinite;
+  }
+
+  .animate-blob-delay {
+    animation: blob-float 12s ease-in-out infinite reverse;
+    animation-delay: -4s;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.7s ease forwards;
+  }
+
+  .delay-100 { animation-delay: 0.1s; opacity: 0; }
+  .delay-200 { animation-delay: 0.2s; opacity: 0; }
+  .delay-300 { animation-delay: 0.3s; opacity: 0; }
+  .delay-400 { animation-delay: 0.4s; opacity: 0; }
+  .delay-500 { animation-delay: 0.5s; opacity: 0; }
+  .delay-600 { animation-delay: 0.6s; opacity: 0; }
+  .delay-700 { animation-delay: 0.7s; opacity: 0; }
+  .delay-800 { animation-delay: 0.8s; opacity: 0; }
+}
+
+/* TON Connect button theming */
+:root {
+  --tg-color-scheme: dark;
+  --tg-theme-button-color: hsl(174, 100%, 45%);
+  --tg-theme-button-text-color: hsl(0, 0%, 4%);
+}
+
+.ton-connect-btn tc-root button {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: hsl(0, 0%, 96%) !important;
+  border-radius: 2rem !important;
+  font-size: 0.875rem !important;
+  height: 2.5rem !important;
+  padding: 0 1rem !important;
+}
