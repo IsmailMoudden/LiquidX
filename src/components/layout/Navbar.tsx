@@ -1,22 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { useTonAddress, TonConnectButton } from "@tonconnect/ui-react";
-import { Wallet, BarChart3, Store, PlusSquare, Zap } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { Wallet, BarChart3, TrendingUp, PlusSquare, Zap, Shield, Banknote, User, LogOut, ChevronDown } from "lucide-react";
 
 const navLinks = [
-  { href: "/marketplace", label: "Marketplace", icon: Store },
-  { href: "/portfolio", label: "Portfolio", icon: BarChart3 },
+  { href: "/lend", label: "Lend", icon: TrendingUp },
+  { href: "/borrow", label: "Borrow", icon: Banknote },
+  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/validator", label: "Validator", icon: Shield },
   { href: "/tokenize", label: "Tokenize", icon: PlusSquare },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const usdcBalance = usePortfolioStore((s) => s.usdcBalance);
   const tonAddress = useTonAddress();
+  const { user, signOut } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleSignOut() {
+    await signOut();
+    router.push("/");
+    router.refresh();
+  }
+
+  const avatarLetter = (user?.user_metadata?.full_name || user?.email || "U")[0].toUpperCase();
 
   return (
     <nav className="sticky top-0 z-50 flex justify-center px-4 pt-4 pb-2">
@@ -75,6 +101,51 @@ export function Navbar() {
                     {tonAddress.slice(0, 6)}…{tonAddress.slice(-4)}
                   </span>
                 </div>
+              )}
+
+              {/* Auth */}
+              {user ? (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen((v) => !v)}
+                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 transition-colors"
+                  >
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary/40 to-accent/30 flex items-center justify-center text-xs font-bold text-primary">
+                      {avatarLetter}
+                    </div>
+                    <ChevronDown className="h-3 w-3 text-white/40" />
+                  </button>
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0d0d] shadow-xl py-1 z-50">
+                      <div className="px-3 py-2 border-b border-white/8">
+                        <p className="text-xs text-white font-medium truncate">{user.user_metadata?.full_name || "Account"}</p>
+                        <p className="text-xs text-white/40 truncate">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/account"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                      >
+                        <User className="h-4 w-4" />
+                        Account
+                      </Link>
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  href="/auth/sign-in"
+                  className="flex items-center gap-2 h-8 px-4 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
+                >
+                  Sign In
+                </Link>
               )}
             </div>
           </div>
