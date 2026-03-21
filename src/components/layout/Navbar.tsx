@@ -3,24 +3,22 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { cn, formatCurrency } from "@/lib/utils";
-import { usePortfolioStore } from "@/store/portfolio-store";
-import { useTonAddress, TonConnectButton } from "@tonconnect/ui-react";
+import { cn } from "@/lib/utils";
+import { useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Wallet, BarChart3, TrendingUp, PlusSquare, Zap, Shield, Banknote, User, LogOut, ChevronDown } from "lucide-react";
+import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, User, LogOut, ChevronDown } from "lucide-react";
 
 const navLinks = [
   { href: "/lend", label: "Lend", icon: TrendingUp },
   { href: "/borrow", label: "Borrow", icon: Banknote },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/validator", label: "Validator", icon: Shield },
-  { href: "/tokenize", label: "Tokenize", icon: PlusSquare },
+  { href: "/tokenize", label: "Register Asset", icon: Layers },
+  { href: "/trust", label: "Trust", icon: ShieldCheck },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const usdcBalance = usePortfolioStore((s) => s.usdcBalance);
   const tonAddress = useTonAddress();
   const { user, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -61,47 +59,49 @@ export function Navbar() {
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
-              {navLinks.map(({ href, label }) => (
+              {navLinks.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
+                  title={label || undefined}
                   className={cn(
-                    "px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    "rounded-lg text-sm font-medium transition-all duration-200",
+                    label ? "px-4 py-1.5" : "p-2",
                     pathname === href
                       ? "text-white bg-white/10"
                       : "text-white/50 hover:text-white/80"
                   )}
                 >
-                  {label}
+                  {label ? label : <Icon className="h-4 w-4" />}
                 </Link>
               ))}
             </div>
 
             {/* Right side */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* USDC Balance */}
-              <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5">
-                <Wallet className="h-3.5 w-3.5 text-primary" />
-                <span className="text-sm font-semibold text-white">
-                  {formatCurrency(usdcBalance)}
-                </span>
-                <span className="text-xs text-primary font-medium">USDC</span>
-              </div>
-
-              {/* TON Wallet */}
-              <div className="ton-connect-btn">
-                <TonConnectButton />
-              </div>
-
-              {/* Connected indicator */}
+              {/* Connected wallet pill */}
               {tonAddress && (
-                <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1">
+                <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                   <span className="text-xs text-primary font-medium">
                     {tonAddress.slice(0, 6)}…{tonAddress.slice(-4)}
                   </span>
                 </div>
               )}
+
+              {/* Validator icon */}
+              <Link
+                href="/validator"
+                title="Validator"
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-200",
+                  pathname === "/validator"
+                    ? "text-white bg-white/10"
+                    : "text-white/50 hover:text-white/80"
+                )}
+              >
+                <Shield className="h-4 w-4" />
+              </Link>
 
               {/* Auth */}
               {user ? (

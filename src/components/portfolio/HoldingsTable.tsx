@@ -15,7 +15,7 @@ export function HoldingsTable() {
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-muted-foreground mb-4">No holdings yet</p>
         <Button asChild>
-          <Link href="/marketplace">Browse Marketplace</Link>
+          <Link href="/lend">Browse Marketplace</Link>
         </Button>
       </div>
     );

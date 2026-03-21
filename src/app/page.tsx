@@ -14,47 +14,47 @@ import {
 const FEATURES = [
   {
     icon: Zap,
-    title: "Instant Liquidity",
+    title: "Tokenize Your Asset",
     description:
-      "Buy and sell asset fractions instantly using USDC. No lock-ups, no waiting periods.",
+      "Convert a real-world asset into on-chain tokens. This becomes your collateral — verifiable, auditable, and locked on XRPL.",
   },
   {
     icon: Shield,
-    title: "Institutional Grade",
+    title: "Validator Approval",
     description:
-      "Every asset is professionally vetted, valued, and legally structured before tokenization.",
+      "An independent validator verifies compliance and collateral before any funds move. No validator sign-off, no settlement.",
   },
   {
     icon: Globe,
-    title: "Global Access",
+    title: "Borrow in USDC",
     description:
-      "Access premium real-world assets from Geneva, Munich, Lisbon, and beyond — from anywhere.",
+      "Asset owners borrow against their tokenized collateral at fixed rates. Funds are released only after escrow conditions are met.",
   },
   {
     icon: TrendingUp,
-    title: "Real Yield",
+    title: "Fund Loans, Earn Yield",
     description:
-      "Earn 5–12% projected annual yield from rental income, energy contracts, and appreciation.",
+      "Lenders fund specific loan pools backed by real collateral. Fixed terms, fixed returns — 5 to 12% annually.",
   },
   {
     icon: Lock,
-    title: "Stablecoin Powered",
+    title: "Escrow-Protected",
     description:
-      "All transactions settled in USDC — no volatility, no slippage, no currency risk.",
+      "All capital is held in XRPL escrow. If conditions aren't met, funds return automatically. No counterparty risk.",
   },
   {
     icon: BarChart3,
-    title: "Full Transparency",
+    title: "Full Audit Trail",
     description:
-      "Real-time portfolio dashboard with allocation charts and complete transaction history.",
+      "Every loan origination, repayment, and settlement is on-chain. Your dashboard shows exactly where every dollar is.",
   },
 ];
 
 const STATS = [
-  { label: "Total Assets Tokenized", value: "$31.4M+", change: "+2%" },
-  { label: "Avg. Annual Yield", value: "8.5%", change: "+0.5%" },
-  { label: "Assets Available", value: "6", change: null },
-  { label: "Min. Investment", value: "$100", change: null },
+  { label: "Total Loans Originated", value: "$31.4M+", change: "+2%" },
+  { label: "Avg. Lender Return", value: "8.5%", change: "+0.5%" },
+  { label: "Active Loan Pools", value: "6", change: null },
+  { label: "Min. to Lend", value: "$100", change: null },
 ];
 
 export default function LandingPage() {
@@ -72,34 +72,34 @@ export default function LandingPage() {
         {/* Badge */}
         <div className="animate-fade-up delay-100 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-primary uppercase tracking-widest mb-10">
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-          New Spring Update
+          Asset-Backed Lending · XRPL
         </div>
 
         {/* Headline */}
         <h1 className="animate-fade-up delay-200 text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] text-white mb-6">
-          Buy, sell, and own fractions
+          Borrow against your assets.
           <br />
-          <span className="gradient-text">of real-world assets</span>
+          <span className="gradient-text">Fund loans that earn yield.</span>
         </h1>
 
         <p className="animate-fade-up delay-300 mx-auto max-w-xl text-base sm:text-lg text-white/50 mb-10 leading-relaxed">
-          Powered by stablecoins for instant, seamless transactions.
+          Real-world assets as collateral. Fixed-term loans. Transparent settlement on XRPL.
         </p>
 
         <div className="animate-fade-up delay-400 flex flex-col sm:flex-row gap-3 justify-center mb-20">
           <Link
-            href="/marketplace"
+            href="/lend"
             className="inline-flex items-center justify-center gap-2 h-12 px-7 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
           >
-            Explore Marketplace
+            Fund a Loan
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
-            href="/portfolio"
+            href="/borrow"
             className="inline-flex items-center justify-center gap-2 h-12 px-7 rounded-full border border-white/15 bg-white/5 text-white text-sm font-semibold hover:bg-white/10 transition-colors backdrop-blur-sm"
           >
             <Play className="h-3.5 w-3.5" />
-            Watch video
+            Borrow Against an Asset
           </Link>
         </div>
 
@@ -140,26 +140,17 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
-                Creating tools that make work
+                Built for borrowers and lenders
                 <br />
-                smarter and simpler
+                who want clarity
               </h2>
             </div>
             <div className="space-y-6 text-white/50 text-sm leading-relaxed">
               <p>
-                We believe that meaningful work happens when tech fades into the
-                background, when tools just get out of the way and let your ideas
-                take center stage. From day one, our goal has been simple: create
-                a foundation that&apos;s neutral and powerful, so your message shines
-                above everything else.
+                LiquidX lets asset owners unlock liquidity without selling. Tokenize your real-world asset, use it as collateral, and borrow against its value on fixed terms — with every step settled on XRPL.
               </p>
               <p>
-                We build templates with one rule in mind: flexibility without
-                compromise. Swap content, adjust visuals, or layer in future
-                updates. The structure is modular, the styling minimal, and the
-                outcome always professional. In a world full of noise, our mission
-                is to deliver a clean digital canvas that stays sharp, no matter
-                how you shape it.
+                For lenders, it means access to loan pools backed by verified real-world collateral. No ambiguity about what your capital is doing: you fund a specific loan, earn a fixed return, and get repaid on schedule.
               </p>
             </div>
           </div>
@@ -171,10 +162,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-14">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-primary uppercase tracking-widest mb-5">
-              Features
+              How It Works
             </div>
             <h2 className="text-4xl sm:text-5xl font-bold text-white">
-              Built for clarity, built for speed
+              Two sides. One platform.
             </h2>
           </div>
 
@@ -222,14 +213,13 @@ export default function LandingPage() {
             {/* Right: text */}
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-primary uppercase tracking-widest mb-6">
-                Performance Insights
+                Built on XRPL
               </div>
               <h2 className="text-4xl font-bold text-white mb-4">
-                See your work in motion
+                Every transaction on-chain
               </h2>
               <p className="text-white/50 text-sm leading-relaxed">
-                Monitor key metrics and trends effortlessly. Get real-time
-                visibility into what matters most to your team.
+                Loan origination, escrow creation, repayments — all settled as XRPL transactions with a public hash. LiquidX never holds your funds.
               </p>
             </div>
           </div>
@@ -247,18 +237,18 @@ export default function LandingPage() {
               {[
                 {
                   step: "01",
-                  title: "Browse Assets",
-                  desc: "Explore tokenized real-world assets across real estate, infrastructure, art, and wine.",
+                  title: "Tokenize or Browse",
+                  desc: "Asset owners tokenize their property on XRPL. Lenders browse active loan pools backed by verified collateral.",
                 },
                 {
                   step: "02",
-                  title: "Buy Fractions with USDC",
-                  desc: "Purchase fractional ownership tokens instantly. No minimums beyond $100. No lock-up.",
+                  title: "Lock Funds in Escrow",
+                  desc: "Lenders commit USDC into XRPL escrow. Borrowers receive funds only after the validator approves the deal.",
                 },
                 {
                   step: "03",
-                  title: "Earn Yield & Exit Anytime",
-                  desc: "Receive projected yields quarterly. Sell your tokens instantly back to the liquidity pool.",
+                  title: "Repay & Earn",
+                  desc: "Borrowers repay on a fixed schedule. Each LoanPay transaction is on-chain. Lenders receive principal + interest.",
                 },
               ].map((item) => (
                 <div key={item.step} className="text-center">
@@ -283,16 +273,16 @@ export default function LandingPage() {
             </div>
             <div className="relative">
               <h2 className="text-3xl font-bold text-white mb-3">
-                Ready to invest in the real world?
+                Ready to put your capital to work?
               </h2>
               <p className="text-white/50 mb-8 max-w-md mx-auto text-sm">
-                Start with $100 USDC. No intermediaries. Instant settlement.
+                Fund a loan backed by real assets. Or borrow against what you own.
               </p>
               <Link
-                href="/marketplace"
+                href="/lend"
                 className="inline-flex items-center gap-2 h-12 px-8 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
               >
-                Start Investing
+                Explore Loan Pools
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

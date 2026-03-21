@@ -5,73 +5,76 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { usePortfolioStore } from "@/store/portfolio-store";
-import { formatCurrency, formatPercent, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatPercent } from "@/lib/utils";
 import { CategoryBadge } from "@/components/assets/CategoryBadge";
-import { TradeDialog } from "@/components/assets/TradeDialog";
-import { Progress } from "@/components/ui/progress";
+import { FundingStatusBadge, InvestmentStatusBadge } from "@/components/assets/EscrowStatusBadge";
+import { InvestDialog } from "@/components/assets/InvestDialog";
+import { ValidatorPanel } from "@/components/assets/ValidatorPanel";
 import { Button } from "@/components/ui/button";
+import { VALIDATORS } from "@/data/validators";
 import {
   TrendingUp,
-  Droplets,
   MapPin,
   ChevronLeft,
   CheckCircle2,
+  Lock,
+  Users,
+  Calendar,
+  Shield,
   Coins,
+  ExternalLink,
 } from "lucide-react";
 import { use } from "react";
 
-export default function AssetDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
-  const [tradeMode, setTradeMode] = useState<"buy" | "sell" | null>(null);
+function daysLeft(deadline: string): number {
+  return Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
 
-  const { assets, holdings } = usePortfolioStore();
+export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [investOpen, setInvestOpen] = useState(false);
+
+  const { assets, investments } = usePortfolioStore();
   const asset = assets.find((a) => a.id === id);
 
   if (!asset) return notFound();
 
-  const holding = holdings.find((h) => h.assetId === id);
-  const ownedTokens = holding?.tokens ?? 0;
-  const ownedValue = ownedTokens * asset.tokenPrice;
-  const ownershipPct = (ownedTokens / asset.tokenSupply) * 100;
+  const validator = VALIDATORS.find((v) => v.id === asset.validatorId);
+  const myInvestments = investments.filter((i) => i.assetId === id);
+  const myLocked = myInvestments.filter((i) => i.status === "locked" || i.status === "pending" || i.status === "locked-in-escrow");
+  const myReleased = myInvestments.filter((i) => i.status === "released" || i.status === "earning");
+
+  const pct = Math.min(100, (asset.amountRaised / asset.fundingTarget) * 100);
+  const days = daysLeft(asset.fundingDeadline);
+  const pctColor = pct >= 100 ? "bg-yellow-400" : pct >= 70 ? "bg-emerald-400" : "bg-primary";
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-      {/* Back */}
       <Link
-        href="/marketplace"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+        href="/lend"
+        className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white mb-6 transition-colors"
       >
         <ChevronLeft className="h-4 w-4" />
-        Back to Marketplace
+        Back to Loan Pools
       </Link>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left — image + details */}
+        {/* Left */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Hero image */}
+          {/* Hero */}
           <div className="relative h-72 sm:h-96 rounded-2xl overflow-hidden">
-            <Image
-              src={asset.image}
-              alt={asset.name}
-              fill
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-            <div className="absolute bottom-5 left-5">
+            <Image src={asset.image} alt={asset.name} fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/90 via-transparent to-transparent" />
+            <div className="absolute bottom-5 left-5 flex items-center gap-2">
               <CategoryBadge category={asset.category} />
+              <FundingStatusBadge status={asset.fundingStatus} />
             </div>
           </div>
 
           {/* Title */}
           <div>
-            <div className="flex items-start gap-2 flex-wrap mb-2">
-              <h1 className="text-2xl sm:text-3xl font-bold">{asset.name}</h1>
-            </div>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{asset.name}</h1>
+            <div className="flex items-center gap-1.5 text-sm text-white/40">
               <MapPin className="h-4 w-4" />
               {asset.location}
             </div>
@@ -79,48 +82,47 @@ export default function AssetDetailPage({
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Valuation</p>
-              <p className="text-lg font-bold">
-                {formatCurrency(asset.totalValue, true)}
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
+              <p className="text-xs text-white/40 mb-1">Proj. Yield</p>
+              <p className="text-lg font-bold text-primary flex items-center gap-1">
+                <TrendingUp className="h-4 w-4" />{formatPercent(asset.projectedYield)}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Token Price</p>
-              <p className="text-lg font-bold font-mono">${asset.tokenPrice}</p>
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
+              <p className="text-xs text-white/40 mb-1">Token Price</p>
+              <p className="text-lg font-bold text-white font-mono">${asset.tokenPrice}</p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Proj. Yield</p>
-              <p className="text-lg font-bold text-emerald-400 flex items-center gap-1">
-                <TrendingUp className="h-4 w-4" />
-                {formatPercent(asset.projectedYield)}
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
+              <p className="text-xs text-white/40 mb-1">Investors</p>
+              <p className="text-lg font-bold text-white flex items-center gap-1">
+                <Users className="h-4 w-4 text-white/30" />{asset.investorCount}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Liquidity</p>
-              <p className="text-lg font-bold flex items-center gap-1 text-blue-400">
-                <Droplets className="h-4 w-4" />
-                {asset.liquidityScore}/10
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
+              <p className="text-xs text-white/40 mb-1">
+                {asset.fundingStatus === "released" ? "Settled" : "Deadline"}
+              </p>
+              <p className={`text-lg font-bold flex items-center gap-1 ${days <= 7 && days > 0 ? "text-orange-400" : "text-white"}`}>
+                <Calendar className="h-4 w-4 text-white/30" />
+                {asset.fundingStatus === "released" ? "Done" : days === 0 ? "Today" : `${days}d`}
               </p>
             </div>
           </div>
 
           {/* Description */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-semibold mb-3">About this asset</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {asset.longDescription}
-            </p>
+          <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-6">
+            <h2 className="font-semibold text-white mb-3">About this asset</h2>
+            <p className="text-sm text-white/50 leading-relaxed">{asset.longDescription}</p>
           </div>
 
           {/* Highlights */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-semibold mb-4">Investment Highlights</h2>
+          <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-6">
+            <h2 className="font-semibold text-white mb-4">Investment Highlights</h2>
             <ul className="space-y-2.5">
               {asset.highlights.map((h) => (
                 <li key={h} className="flex items-start gap-2.5 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                  <span>{h}</span>
+                  <span className="text-white/70">{h}</span>
                 </li>
               ))}
             </ul>
@@ -131,116 +133,130 @@ export default function AssetDetailPage({
             {asset.tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground"
+                className="rounded-full border border-white/8 bg-white/4 px-3 py-1 text-xs text-white/50"
               >
                 #{tag}
               </span>
             ))}
           </div>
-        </div>
 
-        {/* Right — trade panel */}
-        <div className="space-y-4">
-          {/* Token info */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-semibold mb-4">Token Details</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Supply</span>
-                <span className="font-mono font-medium">
-                  {formatNumber(asset.tokenSupply)} tokens
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Price per Token</span>
-                <span className="font-mono font-medium">
-                  ${asset.tokenPrice} USDC
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Min. Investment</span>
-                <span className="font-mono font-medium">
-                  ${asset.minInvestment} USDC
-                </span>
-              </div>
-            </div>
-
-            {/* Funding bar */}
-            <div className="mt-5">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Funded</span>
-                <span className="font-semibold">{asset.funded}%</span>
-              </div>
-              <Progress value={asset.funded} />
-            </div>
-          </div>
-
-          {/* Your position */}
-          {ownedTokens > 0 && (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
-              <h2 className="font-semibold mb-4 flex items-center gap-2 text-primary">
-                <Coins className="h-4 w-4" />
-                Your Position
+          {/* My escrow positions */}
+          {myInvestments.length > 0 && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+              <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <Coins className="h-4 w-4 text-primary" />My Positions
               </h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tokens Owned</span>
-                  <span className="font-mono font-semibold">{ownedTokens}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Current Value</span>
-                  <span className="font-mono font-semibold">
-                    {formatCurrency(ownedValue)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ownership</span>
-                  <span className="font-mono font-semibold">
-                    {ownershipPct.toFixed(3)}%
-                  </span>
-                </div>
+              <div className="space-y-3">
+                {myInvestments.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{formatCurrency((inv as any).amount ?? inv.amountDeposited ?? 0)}</p>
+                      <p className="text-xs text-white/40">{(inv as any).tokens ?? inv.shares ?? 0} tokens · {new Date((inv as any).timestamp ?? inv.depositedAt ?? "").toLocaleDateString()}</p>
+                      {inv.xrplEscrowHash && (
+                        <a
+                          href={`https://testnet.xrpl.org/transactions/${inv.xrplEscrowHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+                        >
+                          <ExternalLink className="h-2.5 w-2.5" />
+                          {inv.xrplEscrowHash.slice(0, 16)}…
+                        </a>
+                      )}
+                    </div>
+                    <InvestmentStatusBadge status={inv.status} />
+                  </div>
+                ))}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Trade buttons */}
-          <div className="space-y-2">
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => setTradeMode("buy")}
-            >
-              <TrendingUp className="h-4 w-4" />
-              Buy Tokens
-            </Button>
-            {ownedTokens > 0 && (
-              <Button
-                variant="outline"
-                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
-                size="lg"
-                onClick={() => setTradeMode("sell")}
-              >
-                Sell Tokens
+        {/* Right — funding + validator panel */}
+        <div className="space-y-5">
+          {/* Funding progress */}
+          <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-white text-sm">Funding Progress</h2>
+              <FundingStatusBadge status={asset.fundingStatus} />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex justify-between text-xs mb-2">
+                <span className="text-white/40">{formatCurrency(asset.amountRaised, true)} raised</span>
+                <span className="font-semibold text-white">{pct.toFixed(0)}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-white/8 overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-700 ${pctColor}`} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex justify-between text-xs mt-2">
+                <span className="text-white/30">Target: {formatCurrency(asset.fundingTarget, true)}</span>
+                <span className="text-white/30">
+                  {asset.amountRaised >= asset.fundingTarget ? "✓ Funded" : `${formatCurrency(asset.fundingTarget - asset.amountRaised, true)} left`}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm border-t border-white/8 pt-4">
+              <div className="flex justify-between">
+                <span className="text-white/40">Min. Investment</span>
+                <span className="font-mono text-white">${asset.minInvestment} USDC</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Token Price</span>
+                <span className="font-mono text-white">${asset.tokenPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Token Supply</span>
+                <span className="font-mono text-white">{asset.tokenSupply.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40 flex items-center gap-1">
+                  <Shield className="h-3 w-3" />Compliance
+                </span>
+                <span className={asset.complianceApproved ? "text-emerald-400 text-xs font-medium" : "text-yellow-400 text-xs"}>
+                  {asset.complianceApproved ? "✓ Approved" : "Pending"}
+                </span>
+              </div>
+            </div>
+
+            {/* Invest button */}
+            {asset.fundingStatus === "open" && (
+              <Button className="w-full mt-5" onClick={() => setInvestOpen(true)}>
+                <Lock className="h-4 w-4" />
+                Invest — Lock in Escrow
               </Button>
+            )}
+            {asset.fundingStatus === "funded" && (
+              <div className="mt-5 rounded-xl bg-yellow-500/5 border border-yellow-500/20 px-4 py-3 text-xs text-yellow-400 text-center">
+                ✓ Funding target reached — awaiting validator settlement
+              </div>
+            )}
+            {asset.fundingStatus === "released" && (
+              <div className="mt-5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 text-xs text-emerald-400 text-center">
+                ✓ Funds released — settlement complete
+              </div>
+            )}
+            {asset.fundingStatus === "refunded" && (
+              <div className="mt-5 rounded-xl bg-red-500/5 border border-red-500/20 px-4 py-3 text-xs text-red-400 text-center">
+                All positions refunded
+              </div>
             )}
           </div>
 
+          {/* Validator panel */}
+          {validator && (
+            <ValidatorPanel asset={asset} validator={validator} />
+          )}
+
           {/* Info note */}
-          <p className="text-xs text-muted-foreground text-center">
-            All transactions settled instantly in USDC. Yields paid quarterly.
+          <p className="text-xs text-white/30 text-center">
+            Funds are locked in XRPL Escrow and released only after validator approval
           </p>
         </div>
       </div>
 
-      {/* Trade Dialog */}
-      {tradeMode && (
-        <TradeDialog
-          asset={asset}
-          mode={tradeMode}
-          open={true}
-          onClose={() => setTradeMode(null)}
-        />
-      )}
+      <InvestDialog asset={asset} open={investOpen} onClose={() => setInvestOpen(false)} />
     </div>
   );
 }

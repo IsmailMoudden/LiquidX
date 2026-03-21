@@ -16,6 +16,11 @@ import {
   Shield,
   CheckCircle2,
   AlertTriangle,
+  Fingerprint,
+  ShieldCheck,
+  ExternalLink,
+  Wallet,
+  ChevronRight,
 } from "lucide-react";
 
 export default function AccountPage() {
@@ -94,6 +99,13 @@ export default function AccountPage() {
 
   const avatarLetter = (fullName || user?.email || "U")[0].toUpperCase();
   const isOAuthUser = !user?.email?.includes("@") || (user.app_metadata?.provider !== "email");
+
+  // ── DID / Identity state (simulated — production would read from XRPL + KYC provider) ──
+  type DIDStatus = "unverified" | "pending" | "verified";
+  const [didStatus, setDidStatus] = useState<DIDStatus>("unverified");
+  const [walletLinked, setWalletLinked] = useState(false);
+  const MOCK_DID = "did:xrpl:1:rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
+  const MOCK_WALLET = "rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
@@ -249,6 +261,186 @@ export default function AccountPage() {
           </form>
         </section>
       )}
+
+      {/* ── Identity & DID ─────────────────────────────────────────────────── */}
+      <section className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6 mb-5">
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wide mb-1 flex items-center gap-2">
+          <Fingerprint className="h-4 w-4 text-white/40" />
+          Decentralized Identity (XRP DID)
+        </h2>
+        <p className="text-xs text-white/30 mb-5">
+          Required to register assets or request loans. Your DID binds your legal
+          identity and wallet to every on-chain action you take on LiquidX.
+        </p>
+
+        {/* Status banner */}
+        {didStatus === "unverified" && (
+          <div className="rounded-xl border border-white/8 bg-white/2 p-4 mb-4 flex items-start gap-3">
+            <div className="w-2 h-2 rounded-full bg-white/20 shrink-0 mt-1.5" />
+            <div>
+              <p className="text-sm text-white/50 font-medium">No verified identity</p>
+              <p className="text-xs text-white/30 mt-0.5">
+                Complete the steps below to unlock asset registration and borrowing.
+              </p>
+            </div>
+          </div>
+        )}
+        {didStatus === "pending" && (
+          <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 mb-4 flex items-start gap-3">
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0 mt-1.5" />
+            <div>
+              <p className="text-sm text-yellow-400 font-medium">Verification in progress</p>
+              <p className="text-xs text-white/30 mt-0.5 font-mono break-all">{MOCK_DID}</p>
+            </div>
+          </div>
+        )}
+        {didStatus === "verified" && (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <p className="text-sm text-emerald-400 font-semibold">Identity Verified</p>
+              </div>
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                DID ACTIVE
+              </span>
+            </div>
+            <p className="font-mono text-xs text-white/40 break-all">{MOCK_DID}</p>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[
+                { label: "KYC", value: "Passed" },
+                { label: "Wallet", value: "Linked" },
+                { label: "Jurisdiction", value: "EU" },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-lg bg-black/20 px-3 py-2">
+                  <p className="text-[10px] text-white/25">{label}</p>
+                  <p className="text-xs text-emerald-400 font-medium mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 1 — Link wallet */}
+        <div className={`rounded-xl border p-4 mb-3 ${walletLinked ? "border-emerald-500/20 bg-emerald-500/5" : "border-white/8 bg-white/2"}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${walletLinked ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"}`}>
+                {walletLinked ? <CheckCircle2 className="h-4 w-4" /> : "1"}
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${walletLinked ? "text-white" : "text-white/60"}`}>
+                  Connect XRPL Wallet
+                </p>
+                {walletLinked && (
+                  <p className="text-xs text-white/30 font-mono mt-0.5">
+                    {MOCK_WALLET.slice(0, 12)}…{MOCK_WALLET.slice(-6)}
+                  </p>
+                )}
+              </div>
+            </div>
+            {!walletLinked && (
+              <button
+                onClick={() => setWalletLinked(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-white/8 hover:bg-white/12 border border-white/10 px-3 py-1.5 text-xs text-white font-medium transition-colors"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                Connect
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Step 2 — KYC */}
+        <div className={`rounded-xl border p-4 mb-3 ${
+          didStatus === "verified" ? "border-emerald-500/20 bg-emerald-500/5" :
+          didStatus === "pending" ? "border-yellow-500/20 bg-yellow-500/5" :
+          walletLinked ? "border-white/8 bg-white/2" : "border-white/5 bg-white/1 opacity-40"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+                didStatus === "verified" ? "bg-emerald-500/20 text-emerald-400" :
+                didStatus === "pending" ? "bg-yellow-500/20 text-yellow-400" :
+                "bg-white/8 text-white/30"
+              }`}>
+                {didStatus === "verified" ? <CheckCircle2 className="h-4 w-4" /> : "2"}
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${walletLinked ? "text-white" : "text-white/30"}`}>
+                  Identity Verification (KYC)
+                </p>
+                <p className="text-xs text-white/30 mt-0.5">
+                  Verified by a licensed KYC provider — anchored to your DID
+                </p>
+              </div>
+            </div>
+            {walletLinked && didStatus === "unverified" && (
+              <button
+                onClick={() => setDidStatus("pending")}
+                className="flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3 py-1.5 text-xs text-black font-semibold transition-colors"
+              >
+                <Fingerprint className="h-3.5 w-3.5" />
+                Verify
+              </button>
+            )}
+            {didStatus === "pending" && (
+              <button
+                onClick={() => setDidStatus("verified")}
+                className="flex items-center gap-1.5 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1.5 text-xs text-yellow-400 font-medium transition-colors"
+              >
+                Pending…
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Step 3 — DID created */}
+        <div className={`rounded-xl border p-4 ${
+          didStatus === "verified" ? "border-emerald-500/20 bg-emerald-500/5" :
+          "border-white/5 bg-white/1 opacity-40"
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+              didStatus === "verified" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"
+            }`}>
+              {didStatus === "verified" ? <CheckCircle2 className="h-4 w-4" /> : "3"}
+            </div>
+            <div>
+              <p className={`text-sm font-medium ${didStatus === "verified" ? "text-white" : "text-white/30"}`}>
+                XRP DID Issued &amp; Active
+              </p>
+              <p className="text-xs text-white/30 mt-0.5">
+                Your DID is anchored on the XRP Ledger and linked to all your activity
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {didStatus === "verified" && (
+          <a
+            href="https://xrpl.org/docs/concepts/did"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-4"
+          >
+            About XRP DIDs <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+
+        {didStatus !== "verified" && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-white/6 bg-white/2 px-3 py-2.5">
+            <Shield className="h-3.5 w-3.5 text-white/25 shrink-0 mt-0.5" />
+            <p className="text-xs text-white/30 leading-relaxed">
+              Identity verification is required to register assets or request loans.
+              Your legal identity is never public — only a cryptographic proof is stored on-chain.{" "}
+              <a href="/trust" className="text-primary hover:underline">
+                Learn more <ChevronRight className="h-3 w-3 inline" />
+              </a>
+            </p>
+          </div>
+        )}
+      </section>
 
       {/* Sign out + Danger zone */}
       <section className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">

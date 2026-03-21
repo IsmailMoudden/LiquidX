@@ -90,9 +90,9 @@ export function AssetCard({ asset }: AssetCardProps) {
           <div>
             <div className="flex justify-between text-xs mb-1.5">
               <span className="text-white/40">Funded</span>
-              <span className="font-semibold text-primary">{asset.funded}%</span>
+              <span className="font-semibold text-primary">{Math.min(100, Math.round((asset.amountRaised / asset.fundingTarget) * 100))}%</span>
             </div>
-            <Progress value={asset.funded} className="h-1.5 bg-white/8" />
+            <Progress value={Math.min(100, (asset.amountRaised / asset.fundingTarget) * 100)} className="h-1.5 bg-white/8" />
           </div>
         </div>
       </div>

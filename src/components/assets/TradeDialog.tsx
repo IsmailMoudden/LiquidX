@@ -87,11 +87,12 @@ export function TradeDialog({ asset, mode, open, onClose }: TradeDialogProps) {
     if (tokenAmount <= 0) return;
 
     // 2 — Only XRPL payment for buys
+    let xrplResult = null;
     if (isBuy) {
       setStep("processing");
       try {
-        const result = await sendXRPLPayment(total);
-        setTxResult(result);
+        xrplResult = await sendXRPLPayment(total);
+        setTxResult(xrplResult);
       } catch {
         setStep("error");
         setErrorMsg("XRPL payment failed. Please try again.");
@@ -99,10 +100,23 @@ export function TradeDialog({ asset, mode, open, onClose }: TradeDialogProps) {
       }
     }
 
-    // 3 — Update portfolio state
+    // 3 — Update portfolio state — pass XRPL hash + TON address so they're persisted
     const portfolioResult = isBuy
-      ? buyAsset(asset.id, tokenAmount)
-      : sellAsset(asset.id, tokenAmount);
+      ? buyAsset(
+          asset.id,
+          tokenAmount,
+          xrplResult
+            ? {
+                hash: xrplResult.hash,
+                status: xrplResult.status,
+                explorerUrl: xrplResult.explorerUrl,
+                ledger: xrplResult.ledger,
+                txType: "Payment" as const,
+              }
+            : undefined,
+          tonAddress || undefined
+        )
+      : sellAsset(asset.id, tokenAmount, tonAddress || undefined);
 
     if (!portfolioResult.success) {
       setStep("error");
