@@ -22,6 +22,7 @@
     "@tonconnect/ui-react": "^2.4.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "did-resolver": "^4.1.0",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.475.0",
     "next": "15.2.3",
@@ -30,6 +31,7 @@
     "recharts": "^2.15.0",
     "tailwind-merge": "^2.6.0",
     "xrpl": "^4.6.0",
+    "xrpl-did-resolver": "^0.1.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

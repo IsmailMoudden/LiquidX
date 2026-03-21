@@ -29,6 +29,11 @@ import {
   type XRPLPaymentResult,
   type CollateralEscrowResult,
 } from "./xrpl";
+import {
+  attachDIDToUser,
+  requireVerifiedDID,
+  DIDNotVerifiedError,
+} from "./did";
 
 // ─── Result wrapper ───────────────────────────────────────────────────────────
 
@@ -123,14 +128,38 @@ export async function refundVaultPosition(): Promise<ServiceResult<{ xrplHash: s
  * requestLoan — borrower submits a loan request against their asset.
  * Wraps: LoanSet (+ off-chain underwriting)
  * Called by: borrower on /borrow page
- * The borrower never sees "LoanSet" — they see "Request a loan".
+ *
+ * DID enforcement: resolves and verifies the borrower's DID on XRPL before
+ * allowing loan origination. Pass isDidVerified=true if already verified
+ * in the current session to skip the network call.
  */
 export async function requestLoan(params: {
   borrowerAddress: string;
   principalUsdc: number;
   interestRatePercent: number;
   termDays: number;
+  /** Pass true if DID already resolved this session */
+  isDidVerified?: boolean;
 }): Promise<ServiceResult<{ loanId: string; xrplHash: string }>> {
+  // ── DID gate ──────────────────────────────────────────────────────────────
+  try {
+    let didVerified = params.isDidVerified ?? false;
+    if (!didVerified) {
+      const identity = await attachDIDToUser(params.borrowerAddress);
+      didVerified = identity.didVerified;
+    }
+    requireVerifiedDID(
+      didVerified ? { xrplAddress: params.borrowerAddress, did: `did:xrpl:${params.borrowerAddress}`, didVerified: true, verificationStatus: "verified" } : null,
+      "borrow"
+    );
+  } catch (err) {
+    if (err instanceof DIDNotVerifiedError) {
+      return { ok: false, error: err.message };
+    }
+    // DID resolution failure → block loan (fail-safe)
+    return { ok: false, error: "Could not verify your identity. Please check your DID in Account." };
+  }
+
   try {
     const result = await xrplOriginateLoan({
       borrowerAddress: params.borrowerAddress,
@@ -197,10 +226,10 @@ export interface EligibilityResult {
 }
 
 /**
- * checkUserEligibility — off-chain + on-chain pre-flight before MPT issuance.
+ * checkUserEligibility — real on-chain pre-flight before MPT issuance.
  *
  * Rules:
- *  1. DID must be verified (KYC completed in Account page)
+ *  1. Resolve DID from XRPL and verify the document (real resolution via xrpl-did-resolver)
  *  2. XRPL collateral escrow ≥ COLLATERAL_RATIO × assetValue must exist on-chain
  *
  * Called by: tokenize/page.tsx before showing the submit button, and enforced
@@ -208,13 +237,25 @@ export interface EligibilityResult {
  */
 export async function checkUserEligibility(params: {
   userAddress: string;
-  isDidVerified: boolean;
+  /** Pass true to skip live DID resolution (e.g. already resolved in session) */
+  isDidVerified?: boolean;
   assetValueUsd: number;
 }): Promise<EligibilityResult> {
   const required = params.assetValueUsd * COLLATERAL_RATIO;
 
-  // ── 1. Identity gate ──────────────────────────────────────────────────────
-  if (!params.isDidVerified) {
+  // ── 1. Identity gate — real DID resolution ────────────────────────────────
+  // If caller already resolved DID this session, skip the network call.
+  let didVerified = params.isDidVerified ?? false;
+  if (!didVerified) {
+    try {
+      const identity = await attachDIDToUser(params.userAddress);
+      didVerified = identity.didVerified;
+    } catch {
+      didVerified = false;
+    }
+  }
+
+  if (!didVerified) {
     return {
       eligible: false,
       status: "identity-not-verified",
@@ -292,11 +333,12 @@ export async function lockCollateral(params: {
 export async function tokenizeAsset(
   params: MPTIssuanceParams & {
     userAddress: string;
-    isDidVerified: boolean;
+    /** Pass true if DID was already verified in this session (avoids duplicate resolution) */
+    isDidVerified?: boolean;
     assetValueUsd: number;
   }
 ): Promise<ServiceResult<{ mptIssuanceId: string; xrplHash: string; eligibility: EligibilityResult }>> {
-  // ── Enforcement gate ──────────────────────────────────────────────────────
+  // ── Enforcement gate — real DID check + collateral verification ───────────
   const eligibility = await checkUserEligibility({
     userAddress: params.userAddress,
     isDidVerified: params.isDidVerified,

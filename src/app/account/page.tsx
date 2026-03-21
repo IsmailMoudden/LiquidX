@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthProvider";
+import {
+  createUserDID,
+  attachDIDToUser,
+  formatDID,
+  type UserIdentity,
+  type DIDVerificationResult,
+  verifyDIDDocument,
+  resolveDID,
+} from "@/lib/did";
 import {
   User,
   Mail,
@@ -21,6 +30,8 @@ import {
   ExternalLink,
   Wallet,
   ChevronRight,
+  Loader2,
+  XCircle,
 } from "lucide-react";
 
 export default function AccountPage() {
@@ -100,12 +111,40 @@ export default function AccountPage() {
   const avatarLetter = (fullName || user?.email || "U")[0].toUpperCase();
   const isOAuthUser = !user?.email?.includes("@") || (user.app_metadata?.provider !== "email");
 
-  // ── DID / Identity state (simulated — production would read from XRPL + KYC provider) ──
-  type DIDStatus = "unverified" | "pending" | "verified";
-  const [didStatus, setDidStatus] = useState<DIDStatus>("unverified");
+  // ── DID / Identity state ──────────────────────────────────────────────────
+  // walletAddress is entered by the user — in production this would come from
+  // a connected TON/XRPL wallet SDK. We use a text input for now.
+  const [walletAddress, setWalletAddress] = useState("");
   const [walletLinked, setWalletLinked] = useState(false);
-  const MOCK_DID = "did:xrpl:1:rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
-  const MOCK_WALLET = "rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
+  const [identity, setIdentity] = useState<UserIdentity | null>(null);
+  const [verification, setVerification] = useState<DIDVerificationResult | null>(null);
+  const [didLoading, setDidLoading] = useState(false);
+  const [didError, setDidError] = useState("");
+
+  const resolveIdentity = useCallback(async (address: string) => {
+    setDidLoading(true);
+    setDidError("");
+    try {
+      const id = await attachDIDToUser(address);
+      setIdentity(id);
+      // Run a detailed verify pass so we can show breakdown
+      const resolution = await resolveDID(id.did);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = resolution.didDocument as any;
+      const v = verifyDIDDocument(id.did, doc);
+      setVerification(v);
+    } catch (err) {
+      setDidError(err instanceof Error ? err.message : "Failed to resolve DID.");
+    } finally {
+      setDidLoading(false);
+    }
+  }, []);
+
+  async function handleLinkWallet() {
+    if (!walletAddress.trim()) return;
+    setWalletLinked(true);
+    await resolveIdentity(walletAddress.trim());
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
@@ -273,141 +312,165 @@ export default function AccountPage() {
           identity and wallet to every on-chain action you take on LiquidX.
         </p>
 
-        {/* Status banner */}
-        {didStatus === "unverified" && (
-          <div className="rounded-xl border border-white/8 bg-white/2 p-4 mb-4 flex items-start gap-3">
-            <div className="w-2 h-2 rounded-full bg-white/20 shrink-0 mt-1.5" />
-            <div>
-              <p className="text-sm text-white/50 font-medium">No verified identity</p>
-              <p className="text-xs text-white/30 mt-0.5">
-                Complete the steps below to unlock asset registration and borrowing.
-              </p>
-            </div>
-          </div>
-        )}
-        {didStatus === "pending" && (
-          <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 mb-4 flex items-start gap-3">
-            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0 mt-1.5" />
-            <div>
-              <p className="text-sm text-yellow-400 font-medium">Verification in progress</p>
-              <p className="text-xs text-white/30 mt-0.5 font-mono break-all">{MOCK_DID}</p>
-            </div>
-          </div>
-        )}
-        {didStatus === "verified" && (
+        {/* ── Resolved & verified banner ────────────────────────────────────── */}
+        {identity?.didVerified && verification?.valid && (
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
                 <p className="text-sm text-emerald-400 font-semibold">Identity Verified</p>
               </div>
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                DID ACTIVE
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">
+                DID Active
               </span>
             </div>
-            <p className="font-mono text-xs text-white/40 break-all">{MOCK_DID}</p>
-            <div className="grid grid-cols-3 gap-2 mt-3">
+            <p className="font-mono text-xs text-white/40 break-all mb-3">{identity.did}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { label: "KYC", value: "Passed" },
-                { label: "Wallet", value: "Linked" },
-                { label: "Jurisdiction", value: "EU" },
+                { label: "Key type", value: verification.publicKeyType?.replace("VerificationKey2018","") ?? "Secp256k1" },
+                { label: "Trust level", value: verification.trustLevel ?? "low" },
+                { label: "KYC", value: verification.hasKyc ? (verification.kycProvider ?? "Verified") : "None" },
+                { label: "Jurisdiction", value: verification.jurisdiction ?? "Unknown" },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-lg bg-black/20 px-3 py-2">
                   <p className="text-[10px] text-white/25">{label}</p>
-                  <p className="text-xs text-emerald-400 font-medium mt-0.5">{value}</p>
+                  <p className="text-xs text-emerald-400 font-medium mt-0.5 capitalize">{value}</p>
                 </div>
               ))}
             </div>
+            {/* Verification errors — show even when mostly valid */}
+            {verification.errors.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {verification.errors.map((e, i) => (
+                  <p key={i} className="text-[10px] text-yellow-400/70 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />{e}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Step 1 — Link wallet */}
+        {/* Resolved but invalid DID document */}
+        {identity && !identity.didVerified && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle className="h-4 w-4 text-red-400" />
+              <p className="text-sm text-red-400 font-semibold">DID document invalid</p>
+            </div>
+            <p className="font-mono text-xs text-white/30 break-all mb-2">{identity.did}</p>
+            {verification?.errors.map((e, i) => (
+              <p key={i} className="text-xs text-red-300/70 flex items-start gap-1.5 mt-1">
+                <span className="shrink-0 mt-0.5">→</span>{e}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Not yet connected */}
+        {!walletLinked && (
+          <div className="rounded-xl border border-white/8 bg-white/2 p-4 mb-4 flex items-start gap-3">
+            <div className="w-2 h-2 rounded-full bg-white/20 shrink-0 mt-1.5" />
+            <p className="text-sm text-white/50">
+              Enter your XRPL address below to resolve your DID from the ledger.
+            </p>
+          </div>
+        )}
+
+        {/* ── Step 1 — Link XRPL wallet ─────────────────────────────────────── */}
         <div className={`rounded-xl border p-4 mb-3 ${walletLinked ? "border-emerald-500/20 bg-emerald-500/5" : "border-white/8 bg-white/2"}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${walletLinked ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"}`}>
-                {walletLinked ? <CheckCircle2 className="h-4 w-4" /> : "1"}
-              </div>
-              <div>
-                <p className={`text-sm font-medium ${walletLinked ? "text-white" : "text-white/60"}`}>
-                  Connect XRPL Wallet
-                </p>
-                {walletLinked && (
-                  <p className="text-xs text-white/30 font-mono mt-0.5">
-                    {MOCK_WALLET.slice(0, 12)}…{MOCK_WALLET.slice(-6)}
-                  </p>
-                )}
-              </div>
+          <div className="flex items-start gap-3">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 mt-0.5 ${walletLinked ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"}`}>
+              {walletLinked ? <CheckCircle2 className="h-4 w-4" /> : "1"}
             </div>
-            {!walletLinked && (
-              <button
-                onClick={() => setWalletLinked(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-white/8 hover:bg-white/12 border border-white/10 px-3 py-1.5 text-xs text-white font-medium transition-colors"
-              >
-                <Wallet className="h-3.5 w-3.5" />
-                Connect
-              </button>
-            )}
+            <div className="flex-1">
+              <p className={`text-sm font-medium mb-1 ${walletLinked ? "text-white" : "text-white/60"}`}>
+                Connect XRPL Wallet
+              </p>
+              {walletLinked ? (
+                <p className="text-xs text-white/30 font-mono">
+                  {walletAddress.slice(0, 12)}…{walletAddress.slice(-6)}
+                </p>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={walletAddress}
+                    onChange={(e) => setWalletAddress(e.target.value)}
+                    placeholder="rNsD97gAPq9V3DRBfWkV32N6ihbF5oWBrD"
+                    className="flex-1 h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/20 font-mono focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                  <button
+                    onClick={handleLinkWallet}
+                    disabled={!walletAddress.trim() || didLoading}
+                    className="flex items-center gap-1.5 rounded-lg bg-white/8 hover:bg-white/12 border border-white/10 px-3 h-9 text-xs text-white font-medium transition-colors disabled:opacity-40"
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    Connect
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Step 2 — KYC */}
-        <div className={`rounded-xl border p-4 mb-3 ${
-          didStatus === "verified" ? "border-emerald-500/20 bg-emerald-500/5" :
-          didStatus === "pending" ? "border-yellow-500/20 bg-yellow-500/5" :
-          walletLinked ? "border-white/8 bg-white/2" : "border-white/5 bg-white/1 opacity-40"
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                didStatus === "verified" ? "bg-emerald-500/20 text-emerald-400" :
-                didStatus === "pending" ? "bg-yellow-500/20 text-yellow-400" :
-                "bg-white/8 text-white/30"
-              }`}>
-                {didStatus === "verified" ? <CheckCircle2 className="h-4 w-4" /> : "2"}
-              </div>
-              <div>
-                <p className={`text-sm font-medium ${walletLinked ? "text-white" : "text-white/30"}`}>
-                  Identity Verification (KYC)
-                </p>
-                <p className="text-xs text-white/30 mt-0.5">
-                  Verified by a licensed KYC provider — anchored to your DID
-                </p>
-              </div>
-            </div>
-            {walletLinked && didStatus === "unverified" && (
-              <button
-                onClick={() => setDidStatus("pending")}
-                className="flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3 py-1.5 text-xs text-black font-semibold transition-colors"
-              >
-                <Fingerprint className="h-3.5 w-3.5" />
-                Verify
-              </button>
-            )}
-            {didStatus === "pending" && (
-              <button
-                onClick={() => setDidStatus("verified")}
-                className="flex items-center gap-1.5 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1.5 text-xs text-yellow-400 font-medium transition-colors"
-              >
-                Pending…
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Step 3 — DID created */}
-        <div className={`rounded-xl border p-4 ${
-          didStatus === "verified" ? "border-emerald-500/20 bg-emerald-500/5" :
-          "border-white/5 bg-white/1 opacity-40"
+        {/* ── Step 2 — DID Resolution ───────────────────────────────────────── */}
+        <div className={`rounded-xl border p-4 mb-3 transition-all ${
+          !walletLinked ? "border-white/5 opacity-40" :
+          didLoading ? "border-yellow-500/20 bg-yellow-500/5" :
+          identity?.didVerified ? "border-emerald-500/20 bg-emerald-500/5" :
+          identity ? "border-red-500/20 bg-red-500/5" :
+          "border-white/8 bg-white/2"
         }`}>
           <div className="flex items-center gap-3">
             <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-              didStatus === "verified" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"
+              !walletLinked ? "bg-white/8 text-white/30" :
+              didLoading ? "bg-yellow-500/20 text-yellow-400" :
+              identity?.didVerified ? "bg-emerald-500/20 text-emerald-400" :
+              "bg-white/8 text-white/30"
             }`}>
-              {didStatus === "verified" ? <CheckCircle2 className="h-4 w-4" /> : "3"}
+              {didLoading ? <Loader2 className="h-4 w-4 animate-spin" /> :
+               identity?.didVerified ? <CheckCircle2 className="h-4 w-4" /> : "2"}
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${walletLinked ? "text-white" : "text-white/30"}`}>
+                DID Resolution
+              </p>
+              <p className="text-xs text-white/30 mt-0.5">
+                {didLoading ? "Resolving DID document from XRPL…" :
+                 identity?.didVerified ? `Resolved: ${formatDID(identity.did)}` :
+                 identity ? "DID resolved — document invalid" :
+                 "Fetches your DID document from XRPL on-chain storage, IPFS, or HTTPS"}
+              </p>
+              {didError && (
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <XCircle className="h-3 w-3 shrink-0" />{didError}
+                </p>
+              )}
+            </div>
+            {walletLinked && !didLoading && (
+              <button
+                onClick={() => resolveIdentity(walletAddress)}
+                className="text-xs text-primary hover:underline shrink-0"
+              >
+                Re-resolve
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Step 3 — DID Active ───────────────────────────────────────────── */}
+        <div className={`rounded-xl border p-4 ${
+          identity?.didVerified ? "border-emerald-500/20 bg-emerald-500/5" : "border-white/5 opacity-40"
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+              identity?.didVerified ? "bg-emerald-500/20 text-emerald-400" : "bg-white/8 text-white/30"
+            }`}>
+              {identity?.didVerified ? <CheckCircle2 className="h-4 w-4" /> : "3"}
             </div>
             <div>
-              <p className={`text-sm font-medium ${didStatus === "verified" ? "text-white" : "text-white/30"}`}>
+              <p className={`text-sm font-medium ${identity?.didVerified ? "text-white" : "text-white/30"}`}>
                 XRP DID Issued &amp; Active
               </p>
               <p className="text-xs text-white/30 mt-0.5">
@@ -417,29 +480,29 @@ export default function AccountPage() {
           </div>
         </div>
 
-        {didStatus === "verified" && (
-          <a
-            href="https://xrpl.org/docs/concepts/did"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-4"
-          >
-            About XRP DIDs <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
-
-        {didStatus !== "verified" && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-white/6 bg-white/2 px-3 py-2.5">
-            <Shield className="h-3.5 w-3.5 text-white/25 shrink-0 mt-0.5" />
-            <p className="text-xs text-white/30 leading-relaxed">
-              Identity verification is required to register assets or request loans.
-              Your legal identity is never public — only a cryptographic proof is stored on-chain.{" "}
-              <a href="/trust" className="text-primary hover:underline">
-                Learn more <ChevronRight className="h-3 w-3 inline" />
-              </a>
-            </p>
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-4">
+          {identity?.didVerified ? (
+            <a
+              href={`https://testnet.xrpl.org/accounts/${walletAddress}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              View on XRPL Explorer <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : (
+            <div className="flex items-start gap-2 rounded-lg border border-white/6 bg-white/2 px-3 py-2.5 flex-1">
+              <Shield className="h-3.5 w-3.5 text-white/25 shrink-0 mt-0.5" />
+              <p className="text-xs text-white/30 leading-relaxed">
+                Identity verification is required to register assets or request loans.
+                Your legal identity is never public — only a cryptographic proof is stored on-chain.{" "}
+                <a href="/trust" className="text-primary hover:underline">
+                  Learn more <ChevronRight className="h-3 w-3 inline" />
+                </a>
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Sign out + Danger zone */}
