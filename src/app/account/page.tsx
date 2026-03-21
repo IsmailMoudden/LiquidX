@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { formatDID } from "@/lib/did";
 import {
-  createUserDID,
-  attachDIDToUser,
-  formatDID,
-  type UserIdentity,
-  type DIDVerificationResult,
-  verifyDIDDocument,
-  resolveDID,
-} from "@/lib/did";
+  useIdentityStore,
+  selectXrplAddress,
+  selectIdentity,
+  selectVerification,
+  selectDIDLoading,
+  selectDIDError,
+  selectDisplayDid,
+} from "@/store/identity-store";
 import {
   User,
   Mail,
@@ -33,6 +34,7 @@ import {
   Loader2,
   XCircle,
 } from "lucide-react";
+// unused imports removed after identity store migration
 
 export default function AccountPage() {
   const { user, signOut } = useAuth();
@@ -111,39 +113,24 @@ export default function AccountPage() {
   const avatarLetter = (fullName || user?.email || "U")[0].toUpperCase();
   const isOAuthUser = !user?.email?.includes("@") || (user.app_metadata?.provider !== "email");
 
-  // ── DID / Identity state ──────────────────────────────────────────────────
-  // walletAddress is entered by the user — in production this would come from
-  // a connected TON/XRPL wallet SDK. We use a text input for now.
-  const [walletAddress, setWalletAddress] = useState("");
-  const [walletLinked, setWalletLinked] = useState(false);
-  const [identity, setIdentity] = useState<UserIdentity | null>(null);
-  const [verification, setVerification] = useState<DIDVerificationResult | null>(null);
-  const [didLoading, setDidLoading] = useState(false);
-  const [didError, setDidError] = useState("");
+  // ── DID / Identity state — read from global identity store ──────────────
+  const xrplAddressStored = useIdentityStore(selectXrplAddress);
+  const identity = useIdentityStore(selectIdentity);
+  const verification = useIdentityStore(selectVerification);
+  const didLoading = useIdentityStore(selectDIDLoading);
+  const didError = useIdentityStore(selectDIDError);
+  const displayDid = useIdentityStore(selectDisplayDid);
+  const linkWallet = useIdentityStore((s) => s.linkWallet);
+  const reResolveDID = useIdentityStore((s) => s.reResolveDID);
+  const clearIdentity = useIdentityStore((s) => s.clearIdentity);
 
-  const resolveIdentity = useCallback(async (address: string) => {
-    setDidLoading(true);
-    setDidError("");
-    try {
-      const id = await attachDIDToUser(address);
-      setIdentity(id);
-      // Run a detailed verify pass so we can show breakdown
-      const resolution = await resolveDID(id.did);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const doc = resolution.didDocument as any;
-      const v = verifyDIDDocument(id.did, doc);
-      setVerification(v);
-    } catch (err) {
-      setDidError(err instanceof Error ? err.message : "Failed to resolve DID.");
-    } finally {
-      setDidLoading(false);
-    }
-  }, []);
+  // Local input state (address entry only — not stored locally)
+  const [walletAddress, setWalletAddress] = useState(xrplAddressStored ?? "");
+  const walletLinked = !!xrplAddressStored;
 
   async function handleLinkWallet() {
     if (!walletAddress.trim()) return;
-    setWalletLinked(true);
-    await resolveIdentity(walletAddress.trim());
+    await linkWallet(walletAddress.trim());
   }
 
   return (
@@ -388,9 +375,17 @@ export default function AccountPage() {
                 Connect XRPL Wallet
               </p>
               {walletLinked ? (
-                <p className="text-xs text-white/30 font-mono">
-                  {walletAddress.slice(0, 12)}…{walletAddress.slice(-6)}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-white/30 font-mono">
+                    {(xrplAddressStored ?? "").slice(0, 12)}…{(xrplAddressStored ?? "").slice(-6)}
+                  </p>
+                  <button
+                    onClick={clearIdentity}
+                    className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               ) : (
                 <div className="flex gap-2 mt-2">
                   <input
@@ -450,7 +445,7 @@ export default function AccountPage() {
             </div>
             {walletLinked && !didLoading && (
               <button
-                onClick={() => resolveIdentity(walletAddress)}
+                onClick={reResolveDID}
                 className="text-xs text-primary hover:underline shrink-0"
               >
                 Re-resolve
@@ -483,7 +478,7 @@ export default function AccountPage() {
         <div className="flex items-center justify-between mt-4">
           {identity?.didVerified ? (
             <a
-              href={`https://testnet.xrpl.org/accounts/${walletAddress}`}
+              href={`https://testnet.xrpl.org/accounts/${xrplAddressStored}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"

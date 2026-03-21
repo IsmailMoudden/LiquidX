@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useIdentityStore, selectDidVerified, selectDisplayDid } from "@/store/identity-store";
 import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, User, LogOut, ChevronDown } from "lucide-react";
 
 const navLinks = [
@@ -21,6 +22,8 @@ export function Navbar() {
   const router = useRouter();
   const tonAddress = useTonAddress();
   const { user, signOut } = useAuth();
+  const didVerified = useIdentityStore(selectDidVerified);
+  const displayDid = useIdentityStore(selectDisplayDid);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +82,19 @@ export function Navbar() {
 
             {/* Right side */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Connected wallet pill */}
+              {/* DID verified badge */}
+              {didVerified && displayDid && (
+                <Link
+                  href="/account"
+                  className="hidden lg:flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1"
+                  title={displayDid}
+                >
+                  <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                  <span className="text-xs text-emerald-400 font-medium">ID Verified</span>
+                </Link>
+              )}
+
+              {/* Connected TON wallet pill */}
               {tonAddress && (
                 <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />

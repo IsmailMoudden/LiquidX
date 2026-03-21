@@ -19,6 +19,17 @@ import {
   COLLATERAL_RATIO,
 } from "@/lib/lending-service";
 import {
+  useIdentityStore,
+  useIdentityGate,
+  selectXrplAddress,
+  selectDisplayDid,
+  selectDidVerified,
+} from "@/store/identity-store";
+import {
+  IdentityGateBanner,
+  VerifiedIdentityPill,
+} from "@/components/identity/IdentityGateBanner";
+import {
   CheckCircle2,
   Layers,
   Building2,
@@ -30,11 +41,11 @@ import {
   Fingerprint,
   FileText,
   Upload,
-  Lock,
   AlertTriangle,
   Loader2,
   ChevronRight,
-  User,
+  Lock as LockIcon,
+  User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -60,10 +71,7 @@ const PLACEHOLDER_IMAGES: Record<AssetCategory, string> = {
   commodities: "https://images.unsplash.com/photo-1610375461246-83df859d849d?w=800&q=80",
 };
 
-// Simulated DID — in production this comes from the user's Account/identity state
-const MOCK_DID = "did:xrpl:1:rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
-// Simulate: true = identity already verified in Account page
-const MOCK_IDENTITY_VERIFIED = true;
+// No mock constants — all identity state comes from useIdentityStore (global)
 
 type Step = 1 | 2;
 
@@ -128,7 +136,7 @@ function EligibilityGate({
           href="/account"
           className="inline-flex items-center gap-2 rounded-lg bg-red-500/15 border border-red-500/25 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/25 transition-colors"
         >
-          <User className="h-3.5 w-3.5" />
+          <UserIcon className="h-3.5 w-3.5" />
           Verify identity in Account
           <ChevronRight className="h-3.5 w-3.5" />
         </Link>
@@ -141,7 +149,7 @@ function EligibilityGate({
     return (
       <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 px-5 py-4 space-y-4">
         <div className="flex items-start gap-3">
-          <Lock className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+          <LockIcon className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-yellow-300">Insufficient collateral locked</p>
             <p className="text-xs text-white/50 mt-1 leading-relaxed">
@@ -179,7 +187,7 @@ function EligibilityGate({
             </>
           ) : (
             <>
-              <Lock className="h-4 w-4" />
+              <LockIcon className="h-4 w-4" />
               Lock ${eligibility.collateralRequired.toLocaleString()} collateral on XRPL
             </>
           )}
@@ -668,11 +676,16 @@ function ConfirmStep({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-// Mock user address — in production: read from wallet / auth context
-const MOCK_USER_ADDRESS = "rN7n3473SaZBCG4dFL75SJQnvoFMoFGC9";
+// User address read from global identity store (set in Account page)
 
 export default function TokenizePage() {
   const tokenizeAsset = usePortfolioStore((s) => s.tokenizeAsset);
+
+  // ── Identity — global store (single source of truth) ─────────────────────
+  const { status: gateStatus } = useIdentityGate();
+  const xrplAddress = useIdentityStore(selectXrplAddress);
+  const isDidVerified = useIdentityStore(selectDidVerified);
+  const displayDid = useIdentityStore(selectDisplayDid);
 
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -685,58 +698,38 @@ export default function TokenizePage() {
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [isLockingCollateral, setIsLockingCollateral] = useState(false);
 
-  // Re-run eligibility check whenever totalValue or identity changes
   const runEligibilityCheck = useCallback(async () => {
     const assetValue = parseFloat(form.totalValue);
-    if (!MOCK_IDENTITY_VERIFIED || isNaN(assetValue) || assetValue <= 0) {
-      // If identity not verified, surface that immediately without on-chain call
-      if (!MOCK_IDENTITY_VERIFIED) {
-        setEligibility({
-          eligible: false,
-          status: "identity-not-verified",
-          message: "Identity not verified.",
-          collateralRequired: 0,
-          collateralLocked: 0,
-          collateralSufficient: false,
-          didVerified: false,
-        });
-      } else {
-        setEligibility(null);
-      }
+    if (!isDidVerified || !xrplAddress || isNaN(assetValue) || assetValue <= 0) {
+      setEligibility(null);
       return;
     }
     setIsCheckingEligibility(true);
     try {
       const result = await checkUserEligibility({
-        userAddress: MOCK_USER_ADDRESS,
-        isDidVerified: MOCK_IDENTITY_VERIFIED,
+        userAddress: xrplAddress,
+        isDidVerified,
         assetValueUsd: assetValue,
       });
       setEligibility(result);
     } finally {
       setIsCheckingEligibility(false);
     }
-  }, [form.totalValue]);
+  }, [form.totalValue, xrplAddress, isDidVerified]);
 
-  // Check eligibility when moving to confirm step
   useEffect(() => {
-    if (step === 2) {
-      runEligibilityCheck();
-    }
+    if (step === 2) runEligibilityCheck();
   }, [step, runEligibilityCheck]);
 
   const handleLockCollateral = async () => {
-    if (!eligibility) return;
+    if (!eligibility || !xrplAddress) return;
     setIsLockingCollateral(true);
     try {
       const result = await lockCollateral({
-        userAddress: MOCK_USER_ADDRESS,
+        userAddress: xrplAddress,
         amountUsdc: eligibility.collateralRequired,
       });
-      if (result.ok) {
-        // Re-verify on-chain after locking
-        await runEligibilityCheck();
-      }
+      if (result.ok) await runEligibilityCheck();
     } finally {
       setIsLockingCollateral(false);
     }
@@ -892,48 +885,16 @@ export default function TokenizePage() {
         </div>
       </div>
 
-      {/* ── DID gate — shown if identity not yet verified ────────────────── */}
-      {!MOCK_IDENTITY_VERIFIED && (
-        <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/15 shrink-0">
-              <Lock className="h-5 w-5 text-yellow-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-white mb-1">Identity verification required</p>
-              <p className="text-sm text-white/50 leading-relaxed mb-4">
-                You must verify your identity with an XRP DID before registering assets
-                or requesting loans. This is a one-time step done in your Account.
-              </p>
-              <Link
-                href="/account"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-black hover:bg-primary/90 transition-colors"
-              >
-                <User className="h-4 w-4" />
-                Verify identity in Account
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Identity gate (wallet + DID) ─────────────────────────────────── */}
+      <IdentityGateBanner status={gateStatus} action="register assets" />
 
       {/* ── Verified identity pill ───────────────────────────────────────── */}
-      {MOCK_IDENTITY_VERIFIED && (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 mb-6">
-          <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-emerald-400">Identity verified</p>
-            <p className="font-mono text-[10px] text-white/30 truncate mt-0.5">{MOCK_DID}</p>
-          </div>
-          <Link href="/account" className="text-[10px] text-white/30 hover:text-white/60 shrink-0">
-            Manage →
-          </Link>
-        </div>
+      {gateStatus === "ready" && displayDid && (
+        <VerifiedIdentityPill displayDid={displayDid} />
       )}
 
-      {/* Step indicator + steps — only shown when identity is verified */}
-      {MOCK_IDENTITY_VERIFIED && (
+      {/* Step indicator + steps — only shown when identity is ready */}
+      {gateStatus === "ready" && (
         <>
           <StepIndicator current={step} />
 
@@ -948,7 +909,7 @@ export default function TokenizePage() {
           {step === 2 && (
             <ConfirmStep
               form={form}
-              did={MOCK_DID}
+              did={displayDid ?? ""}
               onBack={() => setStep(1)}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}

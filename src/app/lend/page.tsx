@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { usePortfolioStore } from "@/store/portfolio-store";
+import { useIdentityGate, useIdentityStore, selectDisplayDid } from "@/store/identity-store";
+import { IdentityGateBanner, VerifiedIdentityPill } from "@/components/identity/IdentityGateBanner";
 import { FundingCard } from "@/components/assets/FundingCard";
 import { FundingStatusBadge } from "@/components/assets/EscrowStatusBadge";
 import { CategoryBadge } from "@/components/assets/CategoryBadge";
@@ -178,6 +180,9 @@ const STATUS_FILTERS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LendPage() {
+  const { status: gateStatus } = useIdentityGate();
+  const displayDid = useIdentityStore(selectDisplayDid);
+
   const { assets, vaults, loanBrokers } = usePortfolioStore();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<AssetCategory | "all">("all");
@@ -242,6 +247,12 @@ export default function LendPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+        {/* Identity gate */}
+        <IdentityGateBanner status={gateStatus} action="lend capital" />
+        {gateStatus === "ready" && displayDid && (
+          <VerifiedIdentityPill displayDid={displayDid} />
+        )}
 
         {/* How lending works */}
         <div className="rounded-xl border border-white/8 bg-[#0d0d0d] px-5 py-4">

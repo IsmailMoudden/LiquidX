@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { usePortfolioStore } from "@/store/portfolio-store";
+import { useIdentityGate, useIdentityStore, selectDisplayDid } from "@/store/identity-store";
+import { IdentityGateBanner, VerifiedIdentityPill } from "@/components/identity/IdentityGateBanner";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { repayInstalment } from "@/lib/lending-service";
 import { BorrowingPosition, LoanRepayment } from "@/lib/types";
@@ -223,6 +225,9 @@ function LoanCard({ loan }: { loan: BorrowingPosition }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BorrowPage() {
+  const { status: gateStatus } = useIdentityGate();
+  const displayDid = useIdentityStore(selectDisplayDid);
+
   const { borrowingPositions, loans, assets } = usePortfolioStore();
 
   // Use borrowingPositions if available, fall back to loans alias
@@ -265,6 +270,12 @@ export default function BorrowPage() {
       </div>
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* Identity gate */}
+        <IdentityGateBanner status={gateStatus} action="request a loan" />
+        {gateStatus === "ready" && displayDid && (
+          <VerifiedIdentityPill displayDid={displayDid} />
+        )}
 
         {/* How borrowing works */}
         <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5">
