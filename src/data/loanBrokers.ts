@@ -7,8 +7,9 @@ const PLATFORM = "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik";
 // DestinationTag assignment — unique uint32 per asset, deterministic.
 // Used in every EscrowCreate so lender capital is routed to the right vault on-chain.
 export const VAULT_TAGS: Record<string, number> = {
-  "demo-dakar-property":            999,    // live demo asset 2 — USER is borrower, repay live
-  "demo-lagos-property":            1000,   // live demo asset 1 — ASSET_OWNER borrows, USER lends
+  "demo-lagos-v2":                  998,    // LIVE DEMO — fresh, 0 raised, USER lends in front of judges
+  "demo-dakar-property":            999,    // demo asset 2 — USER is borrower, repay live
+  "demo-lagos-property":            1000,   // demo asset 1 — ASSET_OWNER borrows, USER lends (test)
   "project-dubai-marina-residence": 1001,
   "project-geneva-flat":            1002,
   "vehicle-porsche-911":            1003,
@@ -23,6 +24,33 @@ export const VAULT_TAGS: Record<string, number> = {
 };
 
 export const LOAN_BROKERS: LoanBrokerConfig[] = [
+  // ─── LIVE DEMO VAULT — fresh, 0 raised — USER lends in front of judges ───
+  {
+    id: "vault-lagos-v2",
+    assetId: "demo-lagos-v2",
+    name: "Lekki Phase 1 Residence — Live Demo Pool",
+    description: "Fresh demo vault — $100 bridge loan at 8% APR. LoanSet confirmed on XRPL devnet. Lend live in front of judges.",
+    expectedReturnPercent: 8.0,
+    riskLevel: "low",
+    xrplBrokerAddress: "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik",
+    destinationTag: VAULT_TAGS["demo-lagos-v2"],
+    originationFeePercent: 0,
+    servicingFeePercent: 0.5,
+    firstLossCoverPercent: 10,
+    totalDeposited: 0,
+    availableCapital: 100,
+    utilization: 0,
+    activeLoansCount: 1,
+    totalOriginated: 100,
+    defaultRate: 0,
+    lenderCount: 0,
+    minDeposit: 100,
+    lockupDays: 90,
+    status: "active",
+    xrplHash: "282563D29EA37B82D1985E1A3A5B97320E120826DF993BF42F954314C40292DF",
+    createdAt: new Date().toISOString(),
+  },
+
   // ─── DEMO VAULT 2 — USER is borrower, "Pay Now" live during demo ─────────
   {
     id: "vault-dakar-demo",

@@ -4,6 +4,53 @@ const deadline = (daysFromNow: number) =>
   new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
 
 export const MOCK_ASSETS: Asset[] = [
+  // ─── DEMO ASSET — LIVE DEMO (fresh, 0 raised) — USER lends in front of judges ─
+  {
+    id: "demo-lagos-v2",
+    name: "Lekki Phase 1 Residence — Lagos (Demo)",
+    category: "real-estate",
+    description: "3-bedroom home in Lekki Phase 1, Lagos. Owner seeks a $100 bridge loan at 8% APR — fresh asset for live demo.",
+    longDescription:
+      "A 210 sqm detached residence in Lekki Phase 1, Lagos Island — one of Nigeria's most liquid residential markets. The property is valued at $1,000 by an independent appraiser. The owner, a verified DID holder on XRPL, is seeking a $100 bridge loan at 8% APR over 3 monthly instalments. MPT issuance and LoanSet are confirmed on XRPL devnet. This is the live demo asset — lend live in front of judges.",
+    image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",
+    location: "Lekki Phase 1, Lagos, Nigeria",
+    totalValue: 1_000,
+    tokenSupply: 10,
+    tokenPrice: 100,
+    projectedYield: 8,
+    liquidityScore: 7,
+    minInvestment: 100,
+    tags: ["Real Estate", "Bridge Loan", "Live Demo"],
+    highlights: [
+      "$100 loan — 8% APR, 3 monthly instalments",
+      "MPT issuance confirmed on devnet (XLS-33)",
+      "LoanSet confirmed on devnet (XLS-66)",
+      "DID verified — W3C identity anchored on XRPL",
+    ],
+    fundingTarget: 100,
+    amountRaised: 0,
+    fundingDeadline: deadline(30),
+    fundingStatus: "open",
+    investorCount: 0,
+    validatorId: "validator-001",
+    complianceApproved: true,
+    issuerDid: `did:xrpl:1:rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x`,
+    issuerVerified: true,
+    verificationStatus: "verified",
+    mptIssuanceId: "0BE1A34332057B4EFAF5A294A50DA24143E0E7DF315CAB23BDB07DDEF1897081",
+    mptIssuerAddress: "rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x",
+    contractTxHash: "14F84922A4C3D49F0AD281574FC15BE38804FC654AE1D475A2A4B86ABF4A13A1",
+    sources: ["https://devnet.xrpl.org/transactions/B4702100740FD51BA214733DDED19E89BD7004F67EDC78066F074DE2316344F0"],
+    proofOfOwnership: {
+      documentType: "Certificate of Occupancy",
+      issuedBy: "Lagos State Ministry of Physical Planning",
+      issuedDate: "2023-06-15",
+      hash: "e76d4d3c652192d5539ccad3ed9e80ba3c9845c4409e74cd7e3e77978d148879",
+      borrowerDid: "did:xrpl:1:rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x",
+      didVerified: true,
+    },
+  },
+
   // ─── DEMO ASSET 2 — USER is borrower, repayments due — click "Pay Now" live ─
   {
     id: "demo-dakar-property",
