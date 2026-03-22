@@ -6,6 +6,8 @@ import { formatCurrency, formatPercent } from "@/lib/utils";
 import { AllocationChart } from "@/components/portfolio/AllocationChart";
 import { TransactionList } from "@/components/portfolio/TransactionList";
 import { InvestmentStatusBadge } from "@/components/assets/EscrowStatusBadge";
+import { repayInstalment } from "@/lib/lending-service";
+import { Button } from "@/components/ui/button";
 import {
   Wallet,
   TrendingUp,
@@ -20,6 +22,7 @@ import {
   Coins,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,11 +54,15 @@ function statusLabel(status: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { holdings, assets, usdcBalance, transactions, investments, loans } =
+  const { holdings, assets, transactions, investments, loans, repayLoan } =
     usePortfolioStore();
 
   const [tab, setTab] = useState<Tab>("lending");
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
+  // Loan payment state: tracks which repayment is in-flight and which loan is being settled
+  const [payingRepaymentId, setPayingRepaymentId] = useState<string | null>(null);
+  const [loanPayError, setLoanPayError] = useState<Record<string, string>>({});
+  const [loanPaySuccess, setLoanPaySuccess] = useState<Record<string, string>>({});
 
   // ── Summary stats ──────────────────────────────────────────────────────────
 
@@ -82,20 +89,45 @@ export default function DashboardPage() {
   );
   const totalRemaining = borrowingPositions
     .filter((l) => l.status === "active" || l.status === "late")
-    .reduce((s, l) => s + (l.remainingBalance ?? (l.principal - l.totalRepaid)), 0);
+    .reduce((s, l) => s + Math.max(0, l.remainingBalance ?? (l.principal - l.totalRepaid)), 0);
 
   const totalHoldingsValue = holdings.reduce((sum, h) => {
     const asset = assets.find((a) => a.id === h.assetId);
     return sum + h.tokens * (asset?.tokenPrice ?? 0);
   }, 0);
 
-  const totalPortfolio = usdcBalance + totalLent + totalHoldingsValue;
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "lending", label: "My Lending", count: lendingPositions.length },
     { id: "loans", label: "My Loans", count: borrowingPositions.length },
     { id: "assets", label: "My Assets", count: holdings.length },
   ];
+
+  const handlePayInstalment = async (loan: (typeof borrowingPositions)[number], repaymentId: string) => {
+    const repayment = loan.repaymentSchedule.find((r) => r.id === repaymentId);
+    if (!repayment) return;
+    setPayingRepaymentId(repaymentId);
+    setLoanPayError((e) => ({ ...e, [loan.id]: "" }));
+    const svc = await repayInstalment({
+      loanId: loan.xrplLoanId ?? loan.id,
+      borrowerAddress: loan.borrowerAddress,
+      amountUsdc: repayment.amount,
+      principal: repayment.principal,
+      interest: repayment.interest,
+    });
+    if (!svc.ok) {
+      setLoanPayError((e) => ({ ...e, [loan.id]: svc.error ?? "Payment failed" }));
+    } else {
+      repayLoan(loan.id, repaymentId, {
+        hash: svc.xrpl!.hash, status: svc.xrpl!.status,
+        explorerUrl: svc.xrpl!.explorerUrl, ledger: svc.xrpl!.ledger, txType: "LoanPay",
+      });
+      setLoanPaySuccess((s) => ({ ...s, [loan.id]: "Payment confirmed." }));
+      setTimeout(() => setLoanPaySuccess((s) => ({ ...s, [loan.id]: "" })), 4000);
+    }
+    setPayingRepaymentId(null);
+  };
+
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
@@ -108,16 +140,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
-          <p className="text-xs text-white/40 mb-1 flex items-center gap-1">
-            <Wallet className="h-3.5 w-3.5" /> Available to lend
-          </p>
-          <p className="text-xl font-bold font-mono text-white">
-            {formatCurrency(usdcBalance)}
-          </p>
-          <p className="text-xs text-white/30 mt-0.5">USDC balance</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
         <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
           <p className="text-xs text-white/40 mb-1 flex items-center gap-1">
             <TrendingUp className="h-3.5 w-3.5" /> Active loans
@@ -328,9 +351,10 @@ export default function DashboardPage() {
           ) : (
             borrowingPositions.map((loan) => {
               const isExpanded = expandedLoan === loan.id;
-              const remaining =
-                loan.remainingBalance ??
-                (loan.principal - loan.totalRepaid);
+              const remaining = Math.max(
+                0,
+                loan.remainingBalance ?? (loan.principal - loan.totalRepaid)
+              );
               const nextDue = loan.repaymentSchedule?.find(
                 (r) => r.status === "due" || r.status === "overdue"
               );
@@ -423,60 +447,86 @@ export default function DashboardPage() {
                           Repayment Schedule
                         </h3>
                         <div className="space-y-2">
-                          {(loan.repaymentSchedule ?? []).map((r, idx) => (
-                            <div
-                              key={r.id}
-                              className={`flex items-center gap-4 rounded-lg px-4 py-3 ${
-                                r.status === "paid"
-                                  ? "bg-white/2 opacity-50"
-                                  : r.status === "overdue"
-                                  ? "bg-red-500/5 border border-red-500/15"
-                                  : "bg-white/3 border border-white/8"
-                              }`}
-                            >
+                          {(loan.repaymentSchedule ?? []).map((r, idx) => {
+                            const isPayingThis = payingRepaymentId === r.id;
+                            const isFuture = r.status !== "paid" && new Date(r.dueDate) > new Date();
+                            return (
                               <div
-                                className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                                key={r.id}
+                                className={`flex items-center gap-4 rounded-lg px-4 py-3 ${
                                   r.status === "paid"
-                                    ? "bg-emerald-500/20"
+                                    ? "bg-white/2 opacity-50"
                                     : r.status === "overdue"
-                                    ? "bg-red-500/20"
-                                    : "bg-white/10"
+                                    ? "bg-red-500/5 border border-red-500/15"
+                                    : "bg-white/3 border border-white/8"
                                 }`}
                               >
-                                {r.status === "paid" ? (
-                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                                ) : r.status === "overdue" ? (
-                                  <AlertCircle className="h-3 w-3 text-red-400" />
-                                ) : (
-                                  <span className="text-[10px] text-white/30">
-                                    {idx + 1}
-                                  </span>
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                                    r.status === "paid"
+                                      ? "bg-emerald-500/20"
+                                      : r.status === "overdue"
+                                      ? "bg-red-500/20"
+                                      : "bg-white/10"
+                                  }`}
+                                >
+                                  {r.status === "paid" ? (
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  ) : r.status === "overdue" ? (
+                                    <AlertCircle className="h-3 w-3 text-red-400" />
+                                  ) : (
+                                    <span className="text-[10px] text-white/30">{idx + 1}</span>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-white/50">
+                                    Due {new Date(r.dueDate).toLocaleDateString()}
+                                    {r.paidAt && (
+                                      <span className="text-emerald-400 ml-2">
+                                        · Paid {new Date(r.paidAt).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                    {isFuture && r.status !== "paid" && (
+                                      <span className="text-primary/60 ml-2 text-[10px]">· upcoming</span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-white/30">
+                                    {formatCurrency(r.principal)} principal + {formatCurrency(r.interest)} interest
+                                  </p>
+                                </div>
+                                <p className="font-mono font-medium text-white text-sm shrink-0">
+                                  {formatCurrency(r.amount)}
+                                </p>
+                                {r.status !== "paid" && loan.status === "active" && (
+                                  <Button
+                                    size="sm"
+                                    variant={r.status === "overdue" ? "destructive" : "outline"}
+                                    className="shrink-0 h-7 px-3 text-xs"
+                                    disabled={!!payingRepaymentId}
+                                    onClick={() => handlePayInstalment(loan, r.id)}
+                                  >
+                                    {isPayingThis
+                                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : isFuture ? "Pay early" : "Pay now"
+                                    }
+                                  </Button>
                                 )}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-white/50">
-                                  Due{" "}
-                                  {new Date(r.dueDate).toLocaleDateString()}
-                                  {r.paidAt && (
-                                    <span className="text-emerald-400 ml-2">
-                                      · Paid{" "}
-                                      {new Date(
-                                        r.paidAt
-                                      ).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-white/30">
-                                  {formatCurrency(r.principal)} principal +{" "}
-                                  {formatCurrency(r.interest)} interest
-                                </p>
-                              </div>
-                              <p className="font-mono font-medium text-white text-sm shrink-0">
-                                {formatCurrency(r.amount)}
-                              </p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
+
+                        {/* Feedback messages */}
+                        {loanPayError[loan.id] && (
+                          <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/5 border border-red-500/20 px-3 py-2 text-xs text-red-400">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />{loanPayError[loan.id]}
+                          </div>
+                        )}
+                        {loanPaySuccess[loan.id] && (
+                          <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-400">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{loanPaySuccess[loan.id]}
+                          </div>
+                        )}
 
                         {/* XRPL loan hash */}
                         {loan.xrplLoanHash && (

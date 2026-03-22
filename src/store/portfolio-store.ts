@@ -44,6 +44,7 @@ interface PortfolioActions {
     xrpl: XRPLSettlement & { loanId: string }
   ) => { success: boolean; loanId?: string; error?: string };
   repayLoan: (loanId: string, repaymentId: string, xrpl: XRPLSettlement) => { success: boolean; error?: string };
+  settleAllLoan: (loanId: string, xrpl: XRPLSettlement) => { success: boolean; totalPaid?: number; error?: string };
   repayVaultPositions: (assetId: string, xrpl: XRPLSettlement) => { success: boolean; error?: string };
 
   // Legacy
@@ -452,7 +453,7 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         const issuance: MPTIssuance = {
           id: xrpl.mptIssuanceId,
           assetId,
-          issuerAddress: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+          issuerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd", // TEST_USER — asset creator during demo
           maxAmount: String(asset.tokenSupply),
           transferFee: 50,
           flags: { canLock: true, requireAuth: true, canEscrow: true, canTrade: true },
@@ -618,6 +619,62 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         );
 
         return { success: true };
+      },
+
+      // ── SETTLE ALL (early full repayment) ──────────────────────────────────
+
+      settleAllLoan: (loanId, xrpl) => {
+        const state = get();
+        const loan = state.loans.find((l) => l.id === loanId);
+        if (!loan) return { success: false, error: "Loan not found" };
+        if (loan.status !== "active") return { success: false, error: "Loan is not active" };
+
+        const paidAt = new Date().toISOString();
+        let totalPaid = 0;
+
+        const updatedRepayments = loan.repaymentSchedule.map((r) => {
+          if (r.status === "paid") return r;
+          totalPaid += r.amount;
+          return { ...r, status: "paid" as const, paidAt, xrplHash: xrpl.hash };
+        });
+
+        const newTotalRepaid = loan.totalRepaid + totalPaid;
+        const updatedLoans = state.loans.map((l) =>
+          l.id === loanId
+            ? { ...l, repaymentSchedule: updatedRepayments, totalRepaid: newTotalRepaid, status: "repaid" as const, updatedAt: paidAt }
+            : l
+        );
+
+        const tx: Transaction = {
+          id: `tx-${generateId()}`, type: "loan-repay", assetId: loan.assetId, assetName: loan.assetName,
+          tokens: 0, price: 0, total: totalPaid, timestamp: paidAt,
+          xrplHash: xrpl.hash, xrplStatus: xrpl.status, xrplExplorerUrl: xrpl.explorerUrl,
+          xrplLedger: xrpl.ledger, xrplTxType: "LoanPay",
+          brokerId: loan.brokerId, loanId,
+        };
+
+        const updatedBrokers = state.loanBrokers.map((b) =>
+          b.id === loan.brokerId ? { ...b, activeLoansCount: Math.max(0, b.activeLoansCount - 1) } : b
+        );
+
+        set({ loans: updatedLoans, loanBrokers: updatedBrokers, transactions: [tx, ...state.transactions], usdcBalance: state.usdcBalance - totalPaid });
+
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            const updatedLoan = updatedLoans.find((l) => l.id === loanId)!;
+            updateLoan(uid, loanId, {
+              status: updatedLoan.status,
+              total_repaid: updatedLoan.totalRepaid,
+              repayment_schedule: updatedLoan.repaymentSchedule,
+              updated_at: paidAt,
+            }).catch(console.warn);
+            saveTransaction(uid, tx).catch(console.warn);
+          })
+        );
+
+        return { success: true, totalPaid };
       },
 
       // ── REPAY VAULT POSITIONS (VaultRepay) ────────────────────────────────

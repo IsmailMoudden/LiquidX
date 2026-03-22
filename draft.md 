@@ -1,9 +1,3 @@
-The cleanest user experience
 
-For most systems, the least messy option is:
 
-Keep the on-chain loan contract with the original broker/borrower.
-
-Let lenders trade a tokenized claim (NFT/FT) or vault shares.
-
-Handle assignment/redirect of repayments in your backend (or via on-ledger logic if the amendments/features you need are enabled).
+rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd

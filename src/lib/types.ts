@@ -74,6 +74,9 @@ export interface Asset {
   };
   // ── Digital signature ──
   contractTxHash?: string;         // XRPL tx hash of the signed collateral contract
+  // ── Collateral escrow ──
+  collateralEscrowSequence?: number; // XRPL sequence of the 10% collateral EscrowCreate — needed to finish (return) it after repayment
+  collateralReleased?: boolean;      // true once collateral EscrowFinish confirmed
 }
 
 // ─── Vault ────────────────────────────────────────────────────────────────────

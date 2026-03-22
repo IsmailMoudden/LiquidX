@@ -6,6 +6,7 @@ import { useIdentityGate, useIdentityStore, selectDisplayDid, selectXrplAddress,
 import { IdentityGateBanner, VerifiedIdentityPill } from "@/components/identity/IdentityGateBanner";
 import { formatCurrency } from "@/lib/utils";
 import { repayInstalment, requestLoan } from "@/lib/lending-service";
+import { repayVaultLoan, finishXRPLEscrow } from "@/lib/xrpl-client";
 import { calculateLoanPricing } from "@/lib/loan-pricing";
 import { BorrowingPosition, LoanRepayment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
 import {
   Banknote, CheckCircle2, AlertCircle, ExternalLink,
   ChevronDown, ChevronUp, Loader2, Clock, AlertTriangle,
-  ArrowRight, CircleDollarSign, Info, Plus, Zap, Check,
+  ArrowRight, CircleDollarSign, Info, Plus, Zap, Check, TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -404,6 +405,7 @@ function LoanCard({ loan }: { loan: BorrowingPosition }) {
     setPayingId(null);
   };
 
+
   const statusConfig = {
     requested: { label: "Pending approval", color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
     active: { label: isLate ? "Payment overdue" : "Active", color: isLate ? "text-red-400 bg-red-500/10 border-red-500/20" : "text-blue-400 bg-blue-500/10 border-blue-500/20" },
@@ -443,7 +445,7 @@ function LoanCard({ loan }: { loan: BorrowingPosition }) {
           { label: "Borrowed", value: formatCurrency(loan.principal), color: "text-white" },
           { label: "Rate", value: `${loan.interestRatePercent}% p.a.`, color: "text-primary" },
           { label: "Term", value: `${loan.termDays} days`, color: "text-white" },
-          { label: "Remaining", value: formatCurrency(loan.remainingBalance ?? loan.principal - loan.totalRepaid), color: loan.status === "repaid" ? "text-emerald-400" : "text-yellow-400" },
+          { label: "Remaining", value: formatCurrency(Math.max(0, loan.remainingBalance ?? loan.principal - loan.totalRepaid)), color: loan.status === "repaid" ? "text-emerald-400" : "text-yellow-400" },
         ].map((s) => (
           <div key={s.label} className="px-4 py-3">
             <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">{s.label}</p>
@@ -501,6 +503,207 @@ function LoanCard({ loan }: { loan: BorrowingPosition }) {
   );
 }
 
+// ─── Vault Loan Card ─────────────────────────────────────────────────────────
+// Shows assets where the user received lender capital (fundingStatus === "released")
+// and needs to repay principal + interest.
+
+function VaultLoanCard({ asset }: { asset: import("@/lib/types").Asset }) {
+  const { investments, repayVaultPositions } = usePortfolioStore();
+  const [repaying, setRepaying] = useState(false);
+  const [done, setDone] = useState(false);
+  const [collateralReturned, setCollateralReturned] = useState(false);
+  const [collateralTxUrl, setCollateralTxUrl] = useState("");
+  const [error, setError] = useState("");
+  const [txHash, setTxHash] = useState("");
+  const [txUrl, setTxUrl] = useState("");
+
+  const LOAN_TERM_DAYS = 90;
+
+  const releasedInvestments = investments.filter(
+    (i) => i.assetId === asset.id && i.status === "released"
+  );
+
+  const repaymentSummary = releasedInvestments.map((inv) => {
+    const principal = (inv as any).amount ?? 0;
+    const refTs = inv.releasedAt ?? (inv as any).timestamp ?? new Date().toISOString();
+    const daysElapsed = Math.max(1, (Date.now() - new Date(refTs).getTime()) / 86_400_000);
+    const interest = Math.round(principal * (asset.projectedYield / 100) * (daysElapsed / 365) * 100) / 100;
+    return { principal, interest, total: principal + interest };
+  });
+
+  const totalPrincipal = repaymentSummary.reduce((s, r) => s + r.principal, 0);
+  const totalInterest = repaymentSummary.reduce((s, r) => s + r.interest, 0);
+  const totalToRepay = totalPrincipal + totalInterest;
+
+  const earliestReleasedAt = releasedInvestments.reduce<string | undefined>((earliest, inv) => {
+    const ts = inv.releasedAt ?? (inv as any).timestamp;
+    if (!ts) return earliest;
+    return !earliest || ts < earliest ? ts : earliest;
+  }, undefined);
+
+  const dueDate = earliestReleasedAt
+    ? new Date(new Date(earliestReleasedAt).getTime() + LOAN_TERM_DAYS * 86_400_000)
+    : null;
+
+  const isOverdue = dueDate ? Date.now() > dueDate.getTime() : false;
+  const overdueDays = dueDate ? Math.floor((Date.now() - dueDate.getTime()) / 86_400_000) : 0;
+
+  const handleRepay = async () => {
+    setRepaying(true);
+    setError("");
+    console.log(`[BorrowPage] Repaying vault assetId=${asset.id}, total=${totalToRepay}`);
+    try {
+      const xrpl = await repayVaultLoan(totalToRepay);
+      setTxHash(xrpl.hash);
+      setTxUrl(xrpl.explorerUrl);
+      const result = repayVaultPositions(asset.id, {
+        hash: xrpl.hash,
+        status: xrpl.status,
+        explorerUrl: xrpl.explorerUrl,
+        ledger: xrpl.ledger,
+        txType: "Payment",
+      });
+      if (!result.success) {
+        setError(result.error ?? "Repayment failed");
+        setRepaying(false);
+        return;
+      }
+
+      setDone(true);
+
+      // Release the 10% collateral escrow back to the borrower
+      if (asset.collateralEscrowSequence !== undefined) {
+        console.log(`[BorrowPage] Releasing collateral escrow seq=${asset.collateralEscrowSequence}`);
+        try {
+          const collateralXrpl = await finishXRPLEscrow(asset.collateralEscrowSequence);
+          setCollateralReturned(true);
+          setCollateralTxUrl(collateralXrpl.explorerUrl);
+          console.log(`[BorrowPage] Collateral released:`, collateralXrpl.hash);
+        } catch (collErr) {
+          console.warn("[BorrowPage] Collateral release failed (non-blocking):", collErr);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[BorrowPage] repayVaultLoan error:", msg);
+      setError(msg || "XRPL Payment failed");
+    }
+    setRepaying(false);
+  };
+
+  if (done) {
+    return (
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+          <p className="font-semibold text-white">Loan Repaid — {asset.name}</p>
+        </div>
+        <p className="text-sm text-white/50">
+          {formatCurrency(totalPrincipal)} principal + {formatCurrency(totalInterest)} interest sent to all lenders on-chain.
+        </p>
+        {txUrl && (
+          <a href={txUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline">
+            <ExternalLink className="h-3 w-3" />View repayment on XRPL Explorer
+          </a>
+        )}
+        {collateralReturned ? (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            10% collateral escrow returned to your wallet
+            {collateralTxUrl && (
+              <a href={collateralTxUrl} target="_blank" rel="noopener noreferrer"
+                className="ml-auto flex items-center gap-1 hover:underline">
+                <ExternalLink className="h-3 w-3" />View
+              </a>
+            )}
+          </div>
+        ) : asset.collateralEscrowSequence !== undefined ? (
+          <div className="flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+            Releasing 10% collateral escrow…
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-orange-500/20 bg-[#0d0d0d] overflow-hidden">
+      <div className="p-5 flex items-start gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 shrink-0">
+          <TrendingDown className="h-5 w-5 text-orange-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-white text-sm">{asset.name}</p>
+            {isOverdue ? (
+              <span className="rounded-full border border-red-500/30 bg-red-500/10 text-red-400 text-[10px] font-semibold px-2.5 py-0.5">
+                {overdueDays}d overdue
+              </span>
+            ) : (
+              <span className="rounded-full border border-orange-500/25 bg-orange-500/8 text-orange-400 text-[10px] font-semibold px-2.5 py-0.5">
+                Repayment due
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-white/40 mt-0.5">
+            {releasedInvestments.length} lender{releasedInvestments.length !== 1 ? "s" : ""} · {asset.projectedYield}% p.a.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 divide-x divide-white/6 border-t border-white/6">
+        {[
+          { label: "Principal", value: formatCurrency(totalPrincipal), color: "text-white" },
+          { label: "Interest", value: formatCurrency(totalInterest), color: "text-emerald-400" },
+          { label: "Total to Repay", value: formatCurrency(totalToRepay), color: "text-orange-400" },
+        ].map((s) => (
+          <div key={s.label} className="px-4 py-3">
+            <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">{s.label}</p>
+            <p className={cn("text-sm font-semibold font-mono", s.color)}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="px-5 py-4 border-t border-white/6 space-y-3">
+        {dueDate && (
+          <div className={cn(
+            "flex items-center justify-between rounded-lg border px-3 py-2 text-xs",
+            isOverdue
+              ? "border-red-500/25 bg-red-500/5 text-red-400"
+              : "border-orange-500/20 bg-orange-500/5 text-orange-400"
+          )}>
+            <span>Due date</span>
+            <span className="font-mono font-medium">
+              {dueDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+              {isOverdue ? " — OVERDUE" : ""}
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl bg-red-500/5 border border-red-500/20 px-3 py-2 text-sm text-red-400">
+            <AlertCircle className="h-4 w-4 shrink-0" />{error}
+          </div>
+        )}
+
+        <Button
+          className="w-full bg-orange-500/15 border border-orange-500/30 text-orange-300 hover:bg-orange-500/25"
+          disabled={repaying}
+          onClick={handleRepay}
+        >
+          {repaying ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Processing Repayment…</>
+          ) : (
+            <><Clock className="h-4 w-4" />Repay {releasedInvestments.length} Lender{releasedInvestments.length !== 1 ? "s" : ""} — {formatCurrency(totalToRepay)}</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BorrowPage() {
@@ -508,7 +711,7 @@ export default function BorrowPage() {
   const displayDid = useIdentityStore(selectDisplayDid);
   const [loanDialogOpen, setLoanDialogOpen] = useState(false);
 
-  const { borrowingPositions, loans, assets } = usePortfolioStore();
+  const { borrowingPositions, loans, assets, investments } = usePortfolioStore();
 
   // Use borrowingPositions if available, fall back to loans alias
   const myLoans = (borrowingPositions?.length ? borrowingPositions : loans) ?? [];
@@ -517,7 +720,13 @@ export default function BorrowPage() {
   const closedLoans = myLoans.filter((l) => l.status === "repaid" || l.status === "defaulted" || l.status === "cancelled");
 
   const totalBorrowed = activeLoans.reduce((s, l) => s + l.principal, 0);
-  const totalRemaining = activeLoans.reduce((s, l) => s + (l.remainingBalance ?? l.principal - l.totalRepaid), 0);
+  const totalRemaining = activeLoans.reduce((s, l) => s + Math.max(0, l.remainingBalance ?? l.principal - l.totalRepaid), 0);
+
+  // Vault loans: assets where escrow was released and we owe repayment to lenders
+  const vaultLoanAssets = assets.filter(
+    (a) => a.fundingStatus === "released" &&
+      investments.some((i) => i.assetId === a.id && i.status === "released")
+  );
 
   return (
     <div className="min-h-screen">
@@ -555,6 +764,19 @@ export default function BorrowPage() {
         <IdentityGateBanner status={gateStatus} action="request a loan" />
         {gateStatus === "ready" && displayDid && (
           <VerifiedIdentityPill displayDid={displayDid} />
+        )}
+
+        {/* Vault loans — escrow-funded positions the borrower must repay */}
+        {vaultLoanAssets.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingDown className="h-4 w-4 text-orange-400" />
+              <p className="text-sm font-medium text-white">Escrow loans to repay ({vaultLoanAssets.length})</p>
+            </div>
+            <div className="space-y-4">
+              {vaultLoanAssets.map((a) => <VaultLoanCard key={a.id} asset={a} />)}
+            </div>
+          </section>
         )}
 
         {/* How borrowing works */}

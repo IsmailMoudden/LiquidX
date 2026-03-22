@@ -952,6 +952,7 @@ export default function TokenizePage() {
   const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [isLockingCollateral, setIsLockingCollateral] = useState(false);
+  const [collateralEscrowSeq, setCollateralEscrowSeq] = useState<number | undefined>(undefined);
 
   const runEligibilityCheck = useCallback(async () => {
     const assetValue = parseFloat(form.totalValue);
@@ -984,7 +985,12 @@ export default function TokenizePage() {
         userAddress: xrplAddress,
         amountUsdc: eligibility.collateralRequired,
       });
-      if (result.ok) await runEligibilityCheck();
+      if (result.ok) {
+        if (result.data?.escrowSequence !== undefined) {
+          setCollateralEscrowSeq(result.data.escrowSequence);
+        }
+        await runEligibilityCheck();
+      }
     } finally {
       setIsLockingCollateral(false);
     }
@@ -1033,6 +1039,7 @@ export default function TokenizePage() {
         issuerVerified: isDidVerified,
         legalDeclarationHash: contractHash || undefined,
         contractTxHash: contractTxHash || undefined,
+        collateralEscrowSequence: collateralEscrowSeq,
         ...(form.docType && {
           proofOfOwnership: {
             documentType: form.docType,

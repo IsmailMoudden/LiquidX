@@ -294,12 +294,72 @@ export interface MPTIssuanceParams {
 export async function createMPTIssuance(
   params: MPTIssuanceParams
 ): Promise<XRPLPaymentResult & { mptIssuanceId: string }> {
-  // MPTokensV1 amendment required — simulated until confirmed enabled on devnet
-  await delay(1200 + Math.random() * 800);
-  const hash = mockHash();
-  const mptIssuanceId = mockMPTIssuanceId();
-  console.info("[XRPL] MPTokenIssuanceCreate simulated", { params, mptIssuanceId });
-  return { ...makeResult(hash, mockLedger(), "MPTokenIssuanceCreate"), mptIssuanceId };
+  try {
+    return await realMPTIssuanceCreate(params);
+  } catch (err) {
+    console.warn("[XRPL] MPTokenIssuanceCreate fallback to simulation:", err);
+    await delay(1200 + Math.random() * 800);
+    const mptIssuanceId = mockMPTIssuanceId();
+    return { ...makeResult(mockHash(), mockLedger(), "MPTokenIssuanceCreate"), mptIssuanceId };
+  }
+}
+
+async function realMPTIssuanceCreate(
+  params: MPTIssuanceParams
+): Promise<XRPLPaymentResult & { mptIssuanceId: string }> {
+  const { Client, Wallet } = await import("xrpl");
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 8000, timeout: 20000 });
+  await client.connect();
+  try {
+    // Test user wallet issues the MPT — during the demo, the user creating
+    // the asset IS the test user (rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd).
+    const issuerWallet = Wallet.fromSeed(getTestUserSecret());
+
+    // TransferFee: 1 unit = 0.001%, so 0.5% = 500
+    const transferFee = Math.round(params.transferFeePercent * 1000);
+
+    // Flags: canTransfer (32) + canTrade (16) + canEscrow (8)
+    const flags = 32 + 16 + 8;
+
+    // Metadata: asset name + platform tag, hex-encoded (max 1024 bytes)
+    const metadata = { name: params.assetName.slice(0, 64), platform: "LiquidX" };
+    const metadataHex = Buffer.from(JSON.stringify(metadata)).toString("hex").toUpperCase();
+
+    const tx = await client.submitAndWait(
+      {
+        TransactionType: "MPTokenIssuanceCreate",
+        Account: issuerWallet.address,
+        Flags: flags,
+        TransferFee: transferFee,
+        MaximumAmount: String(Math.floor(params.maxAmount)),
+        AssetScale: 0,
+        Metadata: metadataHex,
+      } as Parameters<typeof client.submitAndWait>[0],
+      { wallet: issuerWallet }
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (tx.result as any).meta ?? (tx.result as any).metaData;
+    if (meta?.TransactionResult !== "tesSUCCESS") {
+      throw new Error(`MPTokenIssuanceCreate failed: ${meta?.TransactionResult}`);
+    }
+
+    // MPTokenIssuanceID is the LedgerIndex of the created MPTokenIssuance object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createdNode = (meta.AffectedNodes as any[]).find(
+      (n: any) => n.CreatedNode?.LedgerEntryType === "MPTokenIssuance"
+    );
+    const mptIssuanceId: string = createdNode?.CreatedNode?.LedgerIndex;
+    if (!mptIssuanceId) throw new Error("MPTokenIssuanceID not found in tx metadata");
+
+    console.info("[XRPL] MPTokenIssuanceCreate confirmed on devnet", { mptIssuanceId, hash: tx.result.hash });
+    return {
+      ...makeResult(tx.result.hash as string, tx.result.ledger_index as number, "MPTokenIssuanceCreate", "confirmed"),
+      mptIssuanceId,
+    };
+  } finally {
+    await client.disconnect();
+  }
 }
 
 export async function authorizeMPTHolder(

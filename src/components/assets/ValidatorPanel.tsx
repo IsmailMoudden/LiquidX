@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Asset, Validator } from "@/lib/types";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-import { finishXRPLEscrow, cancelXRPLEscrow, repayVaultLoan } from "@/lib/xrpl-client";
+import { finishXRPLEscrow, cancelXRPLEscrow } from "@/lib/xrpl-client";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, XCircle, Shield, Loader2, AlertCircle,
-  Zap, ExternalLink, Users, Lock, FileCheck, Clock,
+  Zap, ExternalLink, Users, Lock, FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ interface ValidatorPanelProps {
   validator: Validator;
 }
 
-type ActionState = "idle" | "approving" | "refunding" | "repaying" | "done-approve" | "done-refund" | "done-repay" | "error";
+type ActionState = "idle" | "approving" | "refunding" | "done-approve" | "done-refund" | "error";
 
 export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
   const [actionState, setActionState] = useState<ActionState>("idle");
@@ -26,7 +26,7 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [complianceLoading, setComplianceLoading] = useState(false);
 
-  const { approveAndRelease, refundAll, approveCompliance, repayVaultPositions, investments } = usePortfolioStore();
+  const { approveAndRelease, refundAll, approveCompliance, investments } = usePortfolioStore();
 
   const lockedInvestments = investments.filter(
     (i) => i.assetId === asset.id && (i.status === "locked" || i.status === "pending")
@@ -129,70 +129,6 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
     setComplianceLoading(false);
   };
 
-  // ── Repayment helpers ─────────────────────────────────────────────────────
-
-  const LOAN_TERM_DAYS = 90;
-
-  const releasedInvestments = investments.filter(
-    (i) => i.assetId === asset.id && i.status === "released"
-  );
-
-  const repaymentSummary = releasedInvestments.map((inv) => {
-    const principal = (inv as any).amount ?? 0;
-    const refTs = inv.releasedAt ?? (inv as any).timestamp ?? new Date().toISOString();
-    const daysElapsed = Math.max(1, (Date.now() - new Date(refTs).getTime()) / 86_400_000);
-    const interest = Math.round(principal * (asset.projectedYield / 100) * (daysElapsed / 365) * 100) / 100;
-    return { inv, principal, interest, total: principal + interest };
-  });
-
-  const totalPrincipal = repaymentSummary.reduce((s, r) => s + r.principal, 0);
-  const totalInterest = repaymentSummary.reduce((s, r) => s + r.interest, 0);
-  const totalToRepay = totalPrincipal + totalInterest;
-
-  // Due date = earliest releasedAt + LOAN_TERM_DAYS
-  const earliestReleasedAt = releasedInvestments.reduce<string | undefined>((earliest, inv) => {
-    const ts = inv.releasedAt ?? (inv as any).timestamp;
-    if (!ts) return earliest;
-    return !earliest || ts < earliest ? ts : earliest;
-  }, undefined);
-
-  const dueDate = earliestReleasedAt
-    ? new Date(new Date(earliestReleasedAt).getTime() + LOAN_TERM_DAYS * 86_400_000)
-    : null;
-
-  const isOverdue = dueDate ? Date.now() > dueDate.getTime() : false;
-  const overdueDays = dueDate
-    ? Math.floor((Date.now() - dueDate.getTime()) / 86_400_000)
-    : 0;
-
-  const handleRepay = async () => {
-    setActionState("repaying");
-    console.log(`[ValidatorPanel] Repaying vault assetId ${asset.id}, total: ${totalToRepay}`);
-    try {
-      const xrpl = await repayVaultLoan(totalToRepay);
-      setLastHash(xrpl.hash);
-      setLastExplorerUrl(xrpl.explorerUrl);
-      const result = repayVaultPositions(asset.id, {
-        hash: xrpl.hash,
-        status: xrpl.status,
-        explorerUrl: xrpl.explorerUrl,
-        ledger: xrpl.ledger,
-        txType: "Payment",
-      });
-      if (!result.success) {
-        setActionState("error");
-        setErrorMsg(result.error ?? "Repayment failed");
-        return;
-      }
-      setActionState("done-repay");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[ValidatorPanel] handleRepay error:", msg);
-      setActionState("error");
-      setErrorMsg(msg || "XRPL VaultRepay Payment failed");
-    }
-  };
-
   // ── Settled views ──────────────────────────────────────────────────────────
 
   if (actionState === "done-approve") {
@@ -229,26 +165,6 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
           className="flex items-center gap-1.5 text-xs text-primary hover:underline">
           <ExternalLink className="h-3.5 w-3.5" />
           View EscrowCancel on XRPL Explorer
-        </a>
-      </div>
-    );
-  }
-
-  if (actionState === "done-repay") {
-    return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-          <h3 className="font-semibold text-white">Loan Repaid</h3>
-        </div>
-        <p className="text-sm text-white/50">
-          {formatCurrency(totalToRepay)} ({formatCurrency(totalPrincipal)} principal +{" "}
-          {formatCurrency(totalInterest)} interest) sent to all lenders.
-        </p>
-        <a href={lastExplorerUrl} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-          <ExternalLink className="h-3.5 w-3.5" />
-          View Payment on XRPL Explorer
         </a>
       </div>
     );
@@ -406,65 +322,6 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
           </p>
         )}
 
-        {/* ── Loan Repayment (only when fundingStatus === "released") ── */}
-        {asset.fundingStatus === "released" && releasedInvestments.length > 0 && (
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-orange-400" />
-              <h4 className="font-semibold text-white text-sm">Loan Repayment</h4>
-              {isOverdue && (
-                <span className="ml-auto text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-full px-2.5 py-0.5">
-                  {overdueDays}d overdue
-                </span>
-              )}
-            </div>
-
-            {/* Summary rows */}
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-white/50">Total Principal</span>
-                <span className="font-mono text-white">{formatCurrency(totalPrincipal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50">Total Interest ({formatPercent(asset.projectedYield)} p.a.)</span>
-                <span className="font-mono text-emerald-400">+ {formatCurrency(totalInterest)}</span>
-              </div>
-              <div className="border-t border-white/8 pt-2 flex justify-between">
-                <span className="text-white font-medium">Total to Repay</span>
-                <span className="font-mono font-bold text-white">{formatCurrency(totalToRepay)}</span>
-              </div>
-            </div>
-
-            {/* Due date */}
-            {dueDate && (
-              <div className={cn(
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-xs",
-                isOverdue
-                  ? "border-red-500/25 bg-red-500/5 text-red-400"
-                  : "border-orange-500/20 bg-orange-500/5 text-orange-400"
-              )}>
-                <span>Due date</span>
-                <span className="font-mono font-medium">
-                  {dueDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                  {isOverdue ? " — OVERDUE" : ""}
-                </span>
-              </div>
-            )}
-
-            {/* Repay button */}
-            <Button
-              className="w-full bg-orange-500/15 border border-orange-500/30 text-orange-300 hover:bg-orange-500/25"
-              disabled={actionState === "repaying"}
-              onClick={handleRepay}
-            >
-              {actionState === "repaying" ? (
-                <><Loader2 className="h-4 w-4 animate-spin" />Processing Repayment…</>
-              ) : (
-                <><Clock className="h-4 w-4" />Repay All Lenders</>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
