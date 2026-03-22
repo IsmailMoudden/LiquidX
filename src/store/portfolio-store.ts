@@ -1199,7 +1199,7 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         }
       },
     }),
-    { name: "liquidx-portfolio-v4" }
+    { name: "liquidx-portfolio-v5" }
   )
 );
 
