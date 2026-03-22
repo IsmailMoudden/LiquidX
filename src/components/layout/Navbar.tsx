@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useIdentityStore, selectDidVerified, selectDisplayDid } from "@/store/identity-store";
-import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, User, LogOut, ChevronDown } from "lucide-react";
+import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, FlaskConical, User, LogOut, ChevronDown } from "lucide-react";
 
 const navLinks = [
   { href: "/lend", label: "Lend", icon: TrendingUp },
@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/tokenize", label: "Register Asset", icon: Layers },
   { href: "/trust", label: "Trust", icon: ShieldCheck },
+  { href: "/demo", label: "Demo", icon: FlaskConical },
 ];
 
 export function Navbar() {
