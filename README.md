@@ -1,104 +1,131 @@
-# LiquidX — RWA Lending Protocol on XRPL
+# LiquidX
 
-**Hackathon submission · XRPL Commons · March 2026**
+## Unlock the value of what you own.
 
-LiquidX is a real-world asset (RWA) lending protocol built natively on XRPL. Property owners in emerging markets use their assets as collateral to access on-chain loans. Lenders earn 8–12% APY backed by escrow-locked capital. Every step — from locking funds to releasing them — is settled with a verifiable XRPL transaction.
+There are 1.4 billion people in the world who own land, property, or real assets — but can't borrow against them. Not because the assets aren't valuable. Because the systems that would recognize that value don't reach them.
 
-**8 real transaction types on devnet. XLS-66 now live. Zero smart contracts.**
+LiquidX changes that.
 
 ---
 
-## Prize Tracks
+## The Problem
 
-| Track | How LiquidX qualifies |
+A property owner in Lagos has a $200,000 home. She wants a $30,000 loan to expand her business. The bank says no — no credit score, no formal payslip, wrong passport.
+
+A retail investor in Europe wants exposure to real-asset yields. The 0.5% his savings account offers doesn't cover inflation. The institutional products that do — minimum ticket $500,000 — don't reach him.
+
+A Dubai notary spends three days every week manually verifying property documents, issuing paper certificates that live in a drawer and can't be checked by anyone digitally.
+
+These three people are stuck. Not because of a lack of assets, capital, or expertise — but because the infrastructure connecting them doesn't exist.
+
+---
+
+## What LiquidX Does
+
+LiquidX is a lending protocol for real-world assets, built natively on XRPL.
+
+A property owner tokenizes their asset, locks collateral on-chain, and accesses a loan. A lender deposits capital into an escrow-locked vault and earns 8–12% APY backed by real assets. A validator — an existing notary or legal firm — approves the settlement on-chain and earns a fee for work they're already doing.
+
+No bank. No credit score. No minimum $500,000. The asset is the passport.
+
+---
+
+## Why This Matters
+
+**For borrowers:** A $30,000 loan at 8% APR that a bank would never approve. Accessible from $100. Secured by on-chain escrow, not paperwork. The only identity required is a W3C DID anchored in 256 bytes on XRPL — pseudonymous to the world, verified to the platform.
+
+**For lenders:** Real-asset-backed returns. Capital locked in an escrow enforced by the ledger itself — not a promise in a smart contract, not a counterparty's word. When the validator approves, the `FinishAfter` condition in the ledger releases the funds. No reentrancy. No gas war. No Solidity.
+
+**For validators:** Notaries and registries are already verifying these assets. LiquidX gives them an on-chain trail for the work they do every day, a fee on every settlement, and a digital reputation anchored to their DID.
+
+---
+
+## How It Works — End to End
+
+**1. The asset owner sets up identity and collateral**
+
+She anchors a W3C DID document on XRPL with a `DIDSet` transaction — 256 bytes, confirmed in 3 seconds. She locks ≥10% of the asset value in a self-escrow on-chain (180-day lock). The platform verifies the escrow by reading `account_objects` directly from the ledger — no oracle, no third party.
+
+She submits her asset. An `MPTokenIssuanceCreate` transaction (XLS-33) mints fractional token supply with `requireAuth + canEscrow + canTrade` flags — compliance enforced at the protocol layer, not application code.
+
+**2. Lenders fund the vault**
+
+Lenders browse assets, pick a vault, and commit capital. An `EscrowCreate` transaction locks their funds with a `DestinationTag` routing them to the correct vault on the platform wallet. The `FinishAfter` timestamp is the funding deadline — if the asset doesn't fund in time, `EscrowCancel` returns every lender's capital automatically.
+
+There is no pool of funds. There is no contract holding money. The XRPL ledger holds it.
+
+**3. A validator settles**
+
+An independent validator — a notary, a legal firm, a registry — reviews the asset's documentation on-chain. Ownership document hash, DID verification, escrow positions. When they approve, an `EscrowFinish` transaction releases the capital to the asset owner. Holdings are minted as MPT fractions for each lender. The validator's fee is deducted and recorded.
+
+**4. The borrower repays**
+
+A `LoanSet` transaction (XLS-66) records the loan terms on-chain — rate, term, borrower address, origination fee. A `loanId` is generated on the ledger. Each of three installments triggers a `LoanPay` transaction, each with its own explorer hash. When all three are paid, the loan closes on-chain.
+
+---
+
+## The Technology — Why XRPL
+
+LiquidX uses no smart contracts. Every primitive it needs exists natively on XRPL.
+
+**Native Escrow** — `EscrowCreate / EscrowFinish / EscrowCancel`. The `FinishAfter` field is a ledger condition, not a function call. It cannot be exploited. It cannot be frontrun.
+
+**Multi-Purpose Tokens (XLS-33)** — `MPTokenIssuanceCreate`. The `requireAuth`, `canEscrow`, and `canTrade` flags enforce compliance at the protocol layer. The `mptIssuanceId` is real — extracted from `AffectedNodes` on the validated transaction.
+
+**W3C DID (XRP Ledger)** — `DIDSet`. Identity anchored on-chain in ≤256 bytes. KYC happens off-chain. The platform sees a verified DID. The world sees a pseudonymous address.
+
+**Lending Primitives (XLS-66)** — `LoanBrokerSet / LoanSet / LoanPay`. The XLS-66 amendment is now active on XRPL devnet. The full loan lifecycle — vault creation, loan origination, installment repayment — runs as real transactions on the ledger, verifiable on devnet.xrpl.org.
+
+**Speed and cost** — 3–5 second finality. ~$0.000006 per escrow. Accessible from $100. No layer-2, no rollup, no waiting 12 blocks.
+
+---
+
+## 8 Real Transactions on Devnet
+
+All verified on [devnet.xrpl.org](https://devnet.xrpl.org).
+
+| Transaction | What it does |
 |---|---|
-| **Lending & Borrowing** | Full loan lifecycle on-chain: EscrowCreate → EscrowFinish → LoanBrokerSet → LoanSet → LoanPay × 3. XLS-66 amendment active on devnet — LoanBrokerSet, LoanSet, LoanPay are all real. |
-| **Programmability** | 8 native XRPL tx types, no EVM, no smart contracts. MPT (XLS-33) for token issuance. DID (W3C) for identity. DestinationTag-based vault routing. All composable via XRPL primitives. |
-| **Social Impact** | Unlocks credit for 1.4B unbanked asset owners who own property but can't get loans. $100 minimum investment opens yield to retail. DID-based identity — no bank account required. |
+| `EscrowCreate` | Lender locks capital; FinishAfter enforced by ledger |
+| `EscrowFinish` | Validator releases capital to issuer after approval |
+| `Payment` | Borrower repays vault; LiquidX/VaultRepay memo on-chain |
+| `DIDSet` | Borrower/issuer anchors W3C identity in 256 bytes |
+| `MPTokenIssuanceCreate` | Asset tokenized; 48-char mptIssuanceId from AffectedNodes |
+| `LoanBrokerSet` | Vault created on-chain with fee structure (XLS-66) |
+| `LoanSet` | Loan originated; 256-bit loanId on-chain (XLS-66) |
+| `LoanPay × 3` | Each repayment installment is a real tx (XLS-66) |
+
+XLS-66 amendment confirmed active on XRPL devnet — LoanBrokerSet, LoanSet, LoanPay are all real.
+MPTokensV1 amendment enabled on devnet (confirmed 22 March 2026).
 
 ---
 
-## Live Demo
+## Who This Reaches First
 
-```
-https://liquidx-demo.vercel.app   (or run locally — see below)
-```
+**Borrowers** — property owners in UAE, West Africa, Southeast Asia who own assets worth $100K–$500K but have no path to formal credit. LiquidX's first 10 pilots target Dubai expat property owners. Their asset becomes collateral. Their DID becomes their credit identity.
 
-Pitch deck (17 slides): `/deck` route inside the app, or `src/app/deck/page.tsx`.
+**Lenders** — 50M+ retail investors and crypto-native yield seekers who want real-asset returns without counterparty risk. Starting investment: $100. The escrow on XRPL is their guarantee — not a company's promise.
 
----
-
-## What's Real on Devnet
-
-All transactions verified on [devnet.xrpl.org](https://devnet.xrpl.org).
-
-| Transaction | Status | Amendment |
-|---|---|---|
-| `EscrowCreate` | Real devnet | Native |
-| `EscrowFinish` | Real devnet | Native |
-| `Payment` (vault repay) | Real devnet | Native |
-| `DIDSet` | Real devnet | Native |
-| `MPTokenIssuanceCreate` | Real devnet | XLS-33 (MPTokensV1 enabled) |
-| `LoanBrokerSet` | Real devnet | **XLS-66 now active** |
-| `LoanSet` | Real devnet | **XLS-66 now active** |
-| `LoanPay` | Real devnet | **XLS-66 now active** |
-
-XLS-66 amendment confirmed active on XRPL devnet as of March 2026. MPTokensV1 amendment enabled=true on devnet (confirmed 22 March 2026).
+**Validators** — 500,000 notaries and property registries globally who are already verifying these exact assets. LiquidX doesn't replace them. It gives their existing work an on-chain trail, a fee on every settlement, and a digital reputation they can build over time.
 
 ---
 
-## 3-Wallet Architecture
+## What's Built
 
-```
-rGguTpZQ… (Lender wallet)
-  └─ EscrowCreate → rQDN8QJX (Platform wallet)
-       ├─ DestinationTag 1001  → Dubai Marina vault
-       ├─ DestinationTag 1002  → Geneva Flat vault
-       └─ ...
+A full end-to-end protocol — not a mockup.
 
-rQDN8QJX… (Platform wallet)
-  ├─ EscrowFinish  — releases funds after validator approval
-  ├─ LoanBrokerSet — creates on-chain vault (XLS-66)
-  └─ LoanSet       — originates loan on-chain (XLS-66)
+- **Lend page** — browse vaults, deposit capital, watch escrow status update in real time with XRPL tx hashes
+- **Borrow page** — request loans, view repayment schedule, pay installments with on-chain receipts
+- **Tokenize page** — onboard an asset: DID gate → collateral escrow → MPT issuance
+- **Validator dashboard** — review assets, approve or refund with one click, on-chain settlement
+- **Portfolio / Dashboard** — holdings, allocation chart, full transaction audit trail with explorer links
+- **Identity layer** — DID setup, verification status, enforcement gates throughout the protocol
 
-rG1Lt5T1… (Asset owner wallet)
-  ├─ Collateral EscrowCreate (self-escrow, 180-day lock)
-  ├─ MPTokenIssuanceCreate   — tokenizes the asset (XLS-33)
-  ├─ DIDSet                  — anchors W3C DID on-chain
-  └─ LoanPay × 3             — repayment installments (XLS-66)
-```
-
-DestinationTag routes capital between vaults on a single platform wallet — no per-asset wallet needed.
+Every material action produces an XRPL transaction hash. Every hash links to devnet.xrpl.org.
 
 ---
 
-## Full On-Chain Flow
-
-```
-1. ISSUER
-   DIDSet  →  collateral EscrowCreate (≥10% of asset value, 180-day lock)
-   ↓ platform verifies escrow via account_objects
-   MPTokenIssuanceCreate  →  asset live, mptIssuanceId stored
-   LoanBrokerSet  →  vault created on-chain with fee structure
-
-2. LENDER
-   EscrowCreate  →  capital locked (FinishAfter = funding deadline)
-   DestinationTag routes deposit to correct vault
-
-3. VALIDATOR
-   Reviews compliance: ownership doc hash, DID, escrow positions
-   EscrowFinish  →  releases capital to issuer
-   Holdings minted as MPT fractions for each lender
-
-4. BORROWER
-   DID verified  →  LoanSet originates loan, loanId recorded on-chain
-   LoanPay × 3  →  each installment is a separate on-chain tx
-   All paid  →  loan closed on-chain
-```
-
----
-
-## Quick Start
+## Running the Demo
 
 ```bash
 git clone https://github.com/IsmailMoudden/LiquidX
@@ -107,155 +134,33 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The app seeds with a funded wallet, pre-populated assets, and live demo positions. XRPL calls attempt real devnet first — if the network is unavailable, the app falls back to simulation with the same result shape and a `status: "simulated"` badge shown in the UI.
 
-The app seeds with a demo wallet, pre-populated assets, and a funded USDC balance. All XRPL calls attempt real devnet first; if the network is unavailable the app falls back to simulation with the same result shape (`status: "simulated"` shown in the UI).
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│              Next.js App Router (React 19)           │
-│  /lend  /borrow  /tokenize  /validator  /deck  ...   │
-└─────────────────────┬───────────────────────────────┘
-                      │ read / dispatch
-┌─────────────────────▼───────────────────────────────┐
-│              Zustand Portfolio Store                 │
-│           src/store/portfolio-store.ts               │
-│   investments · loans · holdings · transactions      │
-└─────────────────────┬───────────────────────────────┘
-                      │ calls
-┌─────────────────────▼───────────────────────────────┐
-│              Lending Service Layer                   │
-│            src/lib/lending-service.ts                │
-│   eligibility gates · fee calc · result shape        │
-└─────────────────────┬───────────────────────────────┘
-                      │ wraps
-┌─────────────────────▼───────────────────────────────┐
-│              XRPL Client Layer                       │
-│   src/lib/xrpl.ts · src/lib/xrpl-client.ts          │
-│   real devnet first → simulation fallback            │
-│   wss://s.devnet.rippletest.net:51233                │
-└─────────────────────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────┐
-│              Supabase (persistence)                  │
-│   assets · lending_positions · loans · transactions  │
-└─────────────────────────────────────────────────────┘
-```
-
-UI never calls XRPL directly. Every blockchain action goes through the service layer, returns a `ServiceResult<T>` with hash + explorer link, and is recorded in Supabase.
+The pitch deck lives at `/deck` — 17 slides with the full problem, solution, track alignment, and architecture details.
 
 ---
 
-## User Flows
+## Stack
 
-### Lender
-1. Browse vaults on `/lend`
-2. Click an asset → `/assets/[id]`
-3. "Invest — Lock in Escrow" → `EscrowCreate` fires on devnet
-4. Capital locked; position shows as `locked` with tx hash
-5. Validator approves → `EscrowFinish` → tokens minted as holdings
-
-### Borrower
-1. Set up DID on Account page (`DIDSet` on devnet)
-2. Lock ≥10% collateral (`EscrowCreate` with 180-day lock)
-3. Platform verifies collateral via `account_objects`
-4. Tokenize asset → `MPTokenIssuanceCreate` (XLS-33)
-5. Request loan → `LoanSet` (XLS-66) — loanId recorded on-chain
-6. Pay 3 installments → `LoanPay` × 3 (XLS-66), each with explorer hash
-
-### Validator
-1. Open `/validator` dashboard
-2. Review: ownership doc hash, DID verified, locked positions
-3. **Approve** → `EscrowFinish` releases funds + mints MPT holdings
-4. **Refund** → `EscrowCancel` returns capital to lenders
-
----
-
-## Key Files
-
-```
-src/
-├── lib/
-│   ├── xrpl.ts               # All XRPL primitives (8 tx types)
-│   ├── xrpl-client.ts        # Per-component XRPL call wrappers
-│   ├── lending-service.ts    # Service layer — eligibility + tx orchestration
-│   ├── loan-pricing.ts       # Interest rate model (5 components)
-│   ├── did.ts                # W3C DID resolution via account_objects
-│   └── types.ts              # All TypeScript types
-├── store/
-│   ├── portfolio-store.ts    # Zustand store (investments, loans, holdings, txs)
-│   └── identity-store.ts     # Wallet + DID single source of truth
-├── data/
-│   ├── assets.ts             # 8 seeded RWA assets
-│   ├── validators.ts         # Validator registry
-│   └── loanBrokers.ts        # Vault registry (DestinationTag map)
-├── app/
-│   ├── page.tsx              # Landing page
-│   ├── lend/page.tsx         # Vault browser + on-chain flow explainer
-│   ├── borrow/page.tsx       # Loan request + repayment schedule
-│   ├── tokenize/page.tsx     # Asset onboarding + collateral gate
-│   ├── dashboard/page.tsx    # Portfolio: stats, allocation, holdings, txs
-│   ├── validator/page.tsx    # Settlement dashboard
-│   ├── deck/page.tsx         # 17-slide pitch deck (for judges)
-│   ├── trust/page.tsx        # DID + compliance explainer
-│   └── assets/[id]/page.tsx  # Asset detail + invest
-└── components/
-    ├── assets/
-    │   ├── InvestDialog.tsx      # EscrowCreate flow
-    │   ├── ValidatorPanel.tsx    # EscrowFinish / EscrowCancel
-    │   ├── FundingCard.tsx       # Asset preview with funding progress
-    │   └── EscrowStatusBadge.tsx # On-chain status indicators
-    └── identity/
-        └── IdentityGateBanner.tsx  # DID enforcement banner
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
+| | |
 |---|---|
 | Framework | Next.js 15 (App Router), React 19, TypeScript |
 | Blockchain | XRPL devnet — `wss://s.devnet.rippletest.net:51233` |
-| Amendments | XLS-33 (MPTokensV1), XLS-66 (Lending) — both active on devnet |
-| Identity | W3C DID via XRPL `DIDSet` + `account_objects` resolution |
+| Amendments | XLS-33 (MPTokensV1) + XLS-66 (Lending) — both active on devnet |
+| Identity | W3C DID via `DIDSet` + `account_objects` resolution |
 | State | Zustand 5 with localStorage persistence |
 | Backend | Supabase (auth + Postgres) |
-| UI | TailwindCSS, Radix UI, Lucide, Recharts, Framer Motion |
-| Wallet | TON Connect (`@tonconnect/ui-react`) |
+| UI | TailwindCSS, Radix UI, Lucide, Recharts |
 
 ---
 
 ## Technical Documentation
 
-| Doc | Content |
-|---|---|
-| [docs/xrpl.md](docs/xrpl.md) | Every XRPL tx type: mechanics, real vs simulated, escrow, MPT, DID, XLS-66 |
-| [docs/lending.md](docs/lending.md) | Service layer, interest rate formula, vault lifecycle, eligibility gates |
-| [docs/state.md](docs/state.md) | Zustand store: actions, computed values, persistence |
-| [docs/types.md](docs/types.md) | All TypeScript types: Asset, Loan, Investment, Validator, XRPIdentity |
+- [docs/xrpl.md](docs/xrpl.md) — every XRPL tx type: mechanics, real vs simulated, escrow, MPT, DID, XLS-66
+- [docs/lending.md](docs/lending.md) — service layer, interest rate model, vault lifecycle, eligibility gates
+- [docs/state.md](docs/state.md) — Zustand store: actions, computed values, persistence
+- [docs/types.md](docs/types.md) — all TypeScript types
 
 ---
 
-## Why XRPL — Not Ethereum
-
-- **Native escrow** — `FinishAfter` is a ledger condition enforced by the protocol, not a Solidity function that can be exploited
-- **MPT (XLS-33)** — `requireAuth + canEscrow + canTrade` compliance flags at the protocol layer
-- **XRP DID (W3C)** — identity anchored on-chain in ≤256 bytes, resolved server-side
-- **XLS-66** — native lending primitives: `LoanBrokerSet / LoanSet / LoanPay` — full loan lifecycle without a single line of smart contract code
-- **Speed + cost** — 3–5s finality, ~$0.000006 per escrow (vs $5–50 on Ethereum)
-- **No layer-2, no rollup, no gas wars**
-
----
-
-## Hackathon Context
-
-- **Event:** XRPL Commons Hackathon, March 2026
-- **Team:** Ismail Moudden
-- **Network:** XRPL devnet (`wss://s.devnet.rippletest.net:51233`)
-- **Status:** All 8 tx types verified real on devnet. XLS-66 and XLS-33 both active.
-- **Pitch deck:** `/deck` route — 17 slides covering problem, solution, track alignment, XRPL primitives, live txs, identity, adoption roadmap, and 4 appendix slides with full architecture details
+*XRPL Commons Hackathon · March 2026 · Ismail Moudden*
