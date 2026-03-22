@@ -7,7 +7,8 @@ const PLATFORM = "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik";
 // DestinationTag assignment — unique uint32 per asset, deterministic.
 // Used in every EscrowCreate so lender capital is routed to the right vault on-chain.
 export const VAULT_TAGS: Record<string, number> = {
-  "demo-lagos-property":            1000,   // live demo asset — devnet tx confirmed
+  "demo-dakar-property":            999,    // live demo asset 2 — USER is borrower, repay live
+  "demo-lagos-property":            1000,   // live demo asset 1 — ASSET_OWNER borrows, USER lends
   "project-dubai-marina-residence": 1001,
   "project-geneva-flat":            1002,
   "vehicle-porsche-911":            1003,
@@ -22,7 +23,34 @@ export const VAULT_TAGS: Record<string, number> = {
 };
 
 export const LOAN_BROKERS: LoanBrokerConfig[] = [
-  // ─── LIVE DEMO VAULT — all tx hashes confirmed on devnet.xrpl.org ─────────
+  // ─── DEMO VAULT 2 — USER is borrower, "Pay Now" live during demo ─────────
+  {
+    id: "vault-dakar-demo",
+    assetId: "demo-dakar-property",
+    name: "Plateau Commercial Unit — Loan Pool",
+    description: "Live demo vault — $200 bridge loan at 8% APR, 3 monthly instalments. LoanSet confirmed on XRPL devnet (XLS-66). LoanPay submitted live during demo.",
+    expectedReturnPercent: 8.0,
+    riskLevel: "low",
+    xrplBrokerAddress: "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik",
+    destinationTag: VAULT_TAGS["demo-dakar-property"],
+    originationFeePercent: 0,
+    servicingFeePercent: 0.5,
+    firstLossCoverPercent: 10,
+    totalDeposited: 200,
+    availableCapital: 0,
+    utilization: 100,
+    activeLoansCount: 1,
+    totalOriginated: 200,
+    defaultRate: 0,
+    lenderCount: 1,
+    minDeposit: 200,
+    lockupDays: 90,
+    status: "active",
+    xrplHash: "282563D29EA37B82D1985E1A3A5B97320E120826DF993BF42F954314C40292DF",
+    createdAt: new Date().toISOString(),
+  },
+
+  // ─── DEMO VAULT 1 — all tx hashes confirmed on devnet.xrpl.org ───────────
   {
     id: "vault-lagos-demo",
     assetId: "demo-lagos-property",

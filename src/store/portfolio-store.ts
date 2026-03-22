@@ -87,7 +87,40 @@ const SEED_HOLDINGS: Holding[] = [
   },
 ];
 
-// ─── DEMO LOAN — real XLS-66 LoanSet on devnet ───────────────────────────────
+// ─── DEMO LOAN 2 — USER is borrower, repayments DUE → click "Pay Now" live ──
+// Borrower:  rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd (USER — clicks Pay Now during demo)
+// MPT hash:  FAE29DE6E7C6EE1FFF1AF0471617A8237AACAB11694B67DFE5D5CE409C687B1B
+// LoanSet hash: B27A5C6CC6FEE9FC3380F98CFDC0B3637554740DD5729A29CB58BBEE26D4DD11
+// LoanID: F2F4F2E14CBE439D2893769F31CE355C6017269E376DC64C0780C93D8FC3E3C0
+// PeriodicPayment: 675453 drops = 0.675 XRP @ $100/XRP = $67.55/instalment
+const DEMO2_LOAN_REPAYMENTS: LoanRepayment[] = [
+  {
+    id: "rep-demo2-1",
+    amount: 67.55,
+    principal: 66.67,
+    interest: 0.88,
+    dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // overdue
+    status: "due",
+  },
+  {
+    id: "rep-demo2-2",
+    amount: 67.55,
+    principal: 66.67,
+    interest: 0.88,
+    dueDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "due",
+  },
+  {
+    id: "rep-demo2-3",
+    amount: 67.55,
+    principal: 66.66,
+    interest: 0.89,
+    dueDate: new Date(Date.now() + 55 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "due",
+  },
+];
+
+// ─── DEMO LOAN 1 — real XLS-66 LoanSet on devnet ─────────────────────────────
 // Borrower:  rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x (ASSET_OWNER — creates asset + takes loan)
 // MPT hash:  4F6EA98CD1856AF74447F6974B323FAA9E8D90897ED1771D8A565EF3694AEA53
 // LoanSet hash: 7E410068A867BF529FF1E1FD47E4334C00A31B96CB8D199824523F383DC5D368
@@ -149,7 +182,30 @@ const SEED_LOAN_REPAYMENTS: LoanRepayment[] = [
 ];
 
 const SEED_LOANS: Loan[] = [
-  // ─── LIVE DEMO — real XLS-66 LoanSet confirmed on devnet ─────────────────
+  // ─── DEMO 2 — USER borrows, "Pay Now" live during demo ───────────────────
+  {
+    id: "loan-demo-dakar",
+    brokerId: "vault-dakar-demo",
+    assetId: "demo-dakar-property",
+    assetName: "Plateau Commercial Unit — Dakar",
+    borrowerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+    principal: 200,
+    interestRatePercent: 8.0,
+    termDays: 90,
+    originationFee: 0,
+    startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    maturityDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000).toISOString(),
+    repaymentSchedule: DEMO2_LOAN_REPAYMENTS,
+    totalRepaid: 0,
+    status: "active",
+    xrplLoanHash: "B27A5C6CC6FEE9FC3380F98CFDC0B3637554740DD5729A29CB58BBEE26D4DD11",
+    xrplLoanId: "F2F4F2E14CBE439D2893769F31CE355C6017269E376DC64C0780C93D8FC3E3C0",
+    underwritingScore: 88,
+    underwritingNotes: "DID verified on XRPL. Orange Sénégal lease confirms cashflow. Titre Foncier hashed on-chain.",
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // ─── DEMO 1 — real XLS-66 LoanSet confirmed on devnet ────────────────────
   {
     id: "loan-demo-lagos",
     brokerId: "vault-lagos-demo",
@@ -212,7 +268,40 @@ const SEED_MPT_ISSUANCES: MPTIssuance[] = [
 ];
 
 const SEED_TRANSACTIONS: Transaction[] = [
-  // ─── LIVE DEMO tx — all confirmed on devnet.xrpl.org ─────────────────────
+  // ─── DEMO 2 tx — USER borrows, repay live during demo ────────────────────
+  {
+    id: "tx-demo2-mpt",
+    type: "mpt-issuance",
+    assetId: "demo-dakar-property",
+    assetName: "Plateau Commercial Unit — Dakar",
+    tokens: 5,
+    price: 400,
+    total: 2_000,
+    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    xrplHash: "FAE29DE6E7C6EE1FFF1AF0471617A8237AACAB11694B67DFE5D5CE409C687B1B",
+    xrplStatus: "confirmed",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/FAE29DE6E7C6EE1FFF1AF0471617A8237AACAB11694B67DFE5D5CE409C687B1B",
+    xrplTxType: "MPTokenIssuanceCreate",
+    label: "Asset tokenized — 5 tokens @ $400",
+  },
+  {
+    id: "tx-demo2-loanset",
+    type: "loan-request",
+    assetId: "demo-dakar-property",
+    assetName: "Plateau Commercial Unit — Dakar",
+    tokens: 0,
+    price: 0,
+    total: 200,
+    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    xrplHash: "B27A5C6CC6FEE9FC3380F98CFDC0B3637554740DD5729A29CB58BBEE26D4DD11",
+    xrplStatus: "confirmed",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/B27A5C6CC6FEE9FC3380F98CFDC0B3637554740DD5729A29CB58BBEE26D4DD11",
+    xrplTxType: "LoanSet",
+    brokerId: "vault-dakar-demo",
+    loanId: "loan-demo-dakar",
+    label: "$200 loan originated at 8% APR — XLS-66 LoanSet",
+  },
+  // ─── DEMO 1 tx — all confirmed on devnet.xrpl.org ────────────────────────
   {
     id: "tx-demo-mpt",
     type: "mpt-issuance",

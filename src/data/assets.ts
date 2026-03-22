@@ -4,7 +4,54 @@ const deadline = (daysFromNow: number) =>
   new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
 
 export const MOCK_ASSETS: Asset[] = [
-  // ─── DEMO ASSET — Live devnet transactions ──────────────────────────────────
+  // ─── DEMO ASSET 2 — USER is borrower, repayments due — click "Pay Now" live ─
+  {
+    id: "demo-dakar-property",
+    name: "Plateau Commercial Unit — Dakar",
+    category: "real-estate",
+    description: "Ground-floor commercial unit in Dakar Plateau, Senegal. Borrower seeks a $200 bridge loan at 8% APR — 3 monthly instalments.",
+    longDescription:
+      "A 95 sqm ground-floor commercial unit on Avenue Léopold Sédar Senghor, in the Plateau district of Dakar — Senegal's prime CBD. The unit is leased to a telecoms retailer (Orange Sénégal) at FCFA 950,000/month. The owner is seeking a $200 bridge loan at 8% APR over 3 monthly instalments to fund a fitout ahead of lease renewal. MPT issuance and LoanSet are confirmed on XRPL devnet (XLS-33 + XLS-66). LoanPay transactions are submitted live during the demo.",
+    image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800&q=80",
+    location: "Plateau, Dakar, Senegal",
+    totalValue: 2_000,
+    tokenSupply: 5,
+    tokenPrice: 400,
+    projectedYield: 8,
+    liquidityScore: 6,
+    minInvestment: 200,
+    tags: ["Real Estate", "Bridge Loan", "Live Demo"],
+    highlights: [
+      "$200 loan — 8% APR, 3 monthly instalments",
+      "MPT issuance confirmed on devnet (XLS-33)",
+      "LoanSet confirmed on devnet (XLS-66)",
+      "LoanPay submitted live during demo",
+    ],
+    fundingTarget: 200,
+    amountRaised: 200,
+    fundingDeadline: deadline(30),
+    fundingStatus: "open",
+    investorCount: 1,
+    validatorId: "validator-001",
+    complianceApproved: true,
+    issuerDid: `did:xrpl:1:rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd`,
+    issuerVerified: true,
+    verificationStatus: "verified",
+    mptIssuanceId: "288547EE7C5422DBCC8C2B4495A96DB3FA7448956AC652A8DC4795D4DD572598",
+    mptIssuerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+    contractTxHash: "B27A5C6CC6FEE9FC3380F98CFDC0B3637554740DD5729A29CB58BBEE26D4DD11",
+    sources: ["https://devnet.xrpl.org/transactions/FAE29DE6E7C6EE1FFF1AF0471617A8237AACAB11694B67DFE5D5CE409C687B1B"],
+    proofOfOwnership: {
+      documentType: "Titre Foncier",
+      issuedBy: "Direction des Domaines et du Cadastre, Sénégal",
+      issuedDate: "2022-11-03",
+      hash: "f2f4f2e14cbe439d2893769f31ce355c6017269e376dc64c0780c93d8fc3e3c0",
+      borrowerDid: "did:xrpl:1:rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+      didVerified: true,
+    },
+  },
+
+  // ─── DEMO ASSET 1 — Live devnet transactions ─────────────────────────────────
   {
     id: "demo-lagos-property",
     name: "Lekki Phase 1 Residence — Lagos",
