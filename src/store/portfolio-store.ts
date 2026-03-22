@@ -88,9 +88,11 @@ const SEED_HOLDINGS: Holding[] = [
 ];
 
 // ─── DEMO LOAN — real XLS-66 LoanSet on devnet ───────────────────────────────
-// LoanSet hash: 679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11
-// LoanID (Loan ledger index): F430225EA2653A969C931F2D385C9A291C21F12D8914074FCD5A90F3956530B1
-// PeriodicPayment: 337727 drops = 0.338 XRP @ $100/XRP = $33.77/instalment
+// Borrower:  rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x (ASSET_OWNER — creates asset + takes loan)
+// MPT hash:  4F6EA98CD1856AF74447F6974B323FAA9E8D90897ED1771D8A565EF3694AEA53
+// LoanSet hash: 7E410068A867BF529FF1E1FD47E4334C00A31B96CB8D199824523F383DC5D368
+// LoanID (Loan ledger index): 121A2455611D36881A8B4010693EB1D4253BB99033C6AD028EFAAB5349747BA6
+// PeriodicPayment: 337726 drops = 0.338 XRP @ $100/XRP = $33.77/instalment
 const DEMO_LOAN_REPAYMENTS: LoanRepayment[] = [
   {
     id: "rep-demo-1",
@@ -153,7 +155,7 @@ const SEED_LOANS: Loan[] = [
     brokerId: "vault-lagos-demo",
     assetId: "demo-lagos-property",
     assetName: "Lekki Phase 1 Residence — Lagos",
-    borrowerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+    borrowerAddress: "rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x",
     principal: 100,
     interestRatePercent: 8.0,
     termDays: 90,
@@ -164,8 +166,8 @@ const SEED_LOANS: Loan[] = [
     totalRepaid: 0,
     status: "active",
     // Real devnet tx — verify on devnet.xrpl.org
-    xrplLoanHash: "679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
-    xrplLoanId: "F430225EA2653A969C931F2D385C9A291C21F12D8914074FCD5A90F3956530B1",
+    xrplLoanHash: "7E410068A867BF529FF1E1FD47E4334C00A31B96CB8D199824523F383DC5D368",
+    xrplLoanId: "121A2455611D36881A8B4010693EB1D4253BB99033C6AD028EFAAB5349747BA6",
     underwritingScore: 91,
     underwritingNotes: "DID verified on XRPL. 10% collateral escrow locked on-chain. Certificate of Occupancy hashed.",
     createdAt: new Date().toISOString(),
@@ -220,9 +222,9 @@ const SEED_TRANSACTIONS: Transaction[] = [
     price: 100,
     total: 1_000,
     timestamp: new Date().toISOString(),
-    xrplHash: "2FDA91218EC8A4F8E28337C497F9898567721EBA1464D1DC5045AF1005CA2D28",
+    xrplHash: "4F6EA98CD1856AF74447F6974B323FAA9E8D90897ED1771D8A565EF3694AEA53",
     xrplStatus: "confirmed",
-    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/2FDA91218EC8A4F8E28337C497F9898567721EBA1464D1DC5045AF1005CA2D28",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/4F6EA98CD1856AF74447F6974B323FAA9E8D90897ED1771D8A565EF3694AEA53",
     xrplLedger: 527473,
     xrplTxType: "MPTokenIssuanceCreate",
     label: "Asset tokenized — 10 tokens @ $100",
@@ -236,9 +238,9 @@ const SEED_TRANSACTIONS: Transaction[] = [
     price: 0,
     total: 100,
     timestamp: new Date().toISOString(),
-    xrplHash: "679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    xrplHash: "7E410068A867BF529FF1E1FD47E4334C00A31B96CB8D199824523F383DC5D368",
     xrplStatus: "confirmed",
-    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/7E410068A867BF529FF1E1FD47E4334C00A31B96CB8D199824523F383DC5D368",
     xrplLedger: 527869,
     xrplTxType: "LoanSet",
     brokerId: "vault-lagos-demo",

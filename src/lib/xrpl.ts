@@ -325,9 +325,8 @@ async function realMPTIssuanceCreate(
   const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
-    // Test user wallet issues the MPT — during the demo, the user creating
-    // the asset IS the test user (rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd).
-    const issuerWallet = Wallet.fromSeed(getTestUserSecret());
+    // Asset owner wallet issues the MPT — the borrower/creator of the asset.
+    const issuerWallet = Wallet.fromSeed(getAssetOwnerSecret());
 
     // TransferFee: 1 unit = 0.001%, so 0.5% = 500
     const transferFee = Math.round(params.transferFeePercent * 1000);
@@ -578,8 +577,8 @@ async function realLoanSet(
   await client.connect();
   console.info(`[XRPL][LoanSet][${elapsed()}] Connected`);
   try {
-    // Borrower = test user wallet; Counterparty (lender) = platform wallet.
-    const borrowerWallet = Wallet.fromSeed(getTestUserSecret());
+    // Borrower = asset owner wallet; Counterparty (lender) = platform wallet.
+    const borrowerWallet = Wallet.fromSeed(getAssetOwnerSecret());
     const platformWallet = Wallet.fromSeed(getPlatformSecret());
 
     const xrpPrice = await getXrpPriceUsd();
