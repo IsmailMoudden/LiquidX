@@ -46,6 +46,10 @@ const SLIDES = [
   "identity",
   "xrpl-diagram",
   "appendix",
+  "arch-flow",
+  "did-arch",
+  "borrow-flow",
+  "real-vs-sim",
 ] as const;
 
 type SlideId = (typeof SLIDES)[number];
@@ -64,6 +68,10 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   identity: "Identity",
   "xrpl-diagram": "XRPL Diagram",
   appendix: "Appendix",
+  "arch-flow": "Escrow Flow",
+  "did-arch": "DID + Stack",
+  "borrow-flow": "Borrow Flow",
+  "real-vs-sim": "Real vs Sim",
 };
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
@@ -237,7 +245,7 @@ function SlideProblem() {
             Three gaps. One missing layer.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">02 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">02 / 17</span>
       </div>
 
       <div className="grid grid-cols-3 gap-5 flex-1">
@@ -353,7 +361,7 @@ function SlideSolution() {
             End-to-end. On XRPL.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">03 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">03 / 17</span>
       </div>
 
       {/* Flow */}
@@ -551,7 +559,7 @@ function SlideFeatures() {
             6 modules. All wired.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">04 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">04 / 17</span>
       </div>
 
       <div className="grid grid-cols-3 gap-4 flex-1">
@@ -643,7 +651,7 @@ function SlideArchitecture() {
             4 layers. UI never touches the chain.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">05 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">05 / 17</span>
       </div>
 
       <div className="flex-1 flex flex-col justify-center gap-0">
@@ -777,7 +785,7 @@ function SlideXRPLTxs() {
             7 tx types. Every action auditable.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">06 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">06 / 17</span>
       </div>
 
       {/* XRPL props */}
@@ -897,7 +905,7 @@ function SlideUserFlows() {
             3 actors. 1 protocol.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">07 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">07 / 17</span>
       </div>
 
       {/* Tab strip */}
@@ -1009,7 +1017,7 @@ function SlideDemo() {
             6 pages. All working.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">08 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">08 / 17</span>
       </div>
 
       <div className="grid grid-cols-3 gap-4 flex-1">
@@ -1074,7 +1082,7 @@ function SlideXRPLImpl() {
             The actual implementation.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">09 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">09 / 17</span>
       </div>
 
       <div className="flex-1 grid grid-cols-3 gap-4">
@@ -1325,7 +1333,7 @@ function SlideVault() {
             One vault per asset.<br />Capital separated on-chain.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">10 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">10 / 17</span>
       </div>
 
       <div className="flex-1 grid grid-cols-3 gap-4">
@@ -1514,7 +1522,7 @@ function SlideIdentity() {
             Verified. Not exposed.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">11 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">11 / 17</span>
       </div>
 
       {/* Core concept */}
@@ -1659,7 +1667,7 @@ function SlideXRPLDiagram() {
             XRPL as the trust backbone.
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">12 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">12 / 17</span>
       </div>
 
       <div className="flex-1 flex items-stretch gap-4">
@@ -1900,7 +1908,7 @@ function SlideAppendix() {
           <Tag>Appendix</Tag>
           <h2 className="text-5xl font-black text-white leading-tight">Full stack.</h2>
         </div>
-        <span className="text-[11px] font-mono text-white/20">13 / 13</span>
+        <span className="text-[11px] font-mono text-white/20">13 / 17</span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 flex-1">
@@ -1943,6 +1951,437 @@ function SlideAppendix() {
   );
 }
 
+// ─── Appendix: Escrow Flow ────────────────────────────────────────────────────
+
+function SlideArchFlow() {
+  const wallets = [
+    { label: "Lender", addr: "rGguTpZQ…", quote: "je prête $500", color: "#00e5cc" },
+    { label: "Platform", addr: "rQDN8QJX…", quote: "je valide", color: "#0099ff" },
+    { label: "Asset Owner", addr: "rG1Lt5T1…", quote: "je reçois le prêt", color: "#a855f7" },
+  ];
+
+  const steps = [
+    {
+      n: "1", label: "INVEST", color: "#00e5cc",
+      summary: "Lender clique \"Invest $500\" → InvestDialog convertit $500 → ~355 XRP (prix live CoinGecko)",
+      code: [
+        "POST /api/xrpl/escrow/create",
+        "EscrowCreate {",
+        "  Account     = rGguTpZQ… (lender signe)",
+        "  Amount      = 355 XRP",
+        "  Destination = rG1Lt5T1… (asset owner)",
+        "  FinishAfter = now + 30s",
+        "  Memo        = { assetId, vaultTag }",
+        "}",
+        "→ escrowSequence sauvé dans Zustand",
+      ],
+    },
+    {
+      n: "2", label: "ATTENDRE 30s", color: "#ffaa00",
+      summary: "L'escrow est « frozen » sur XRPL — personne ne peut toucher les XRP pendant la période de lock",
+      code: [
+        "state: locked-in-escrow",
+        "account_objects → type: escrow",
+        "visible on XRPL devnet explorer",
+      ],
+    },
+    {
+      n: "3", label: "VALIDATE & RELEASE", color: "#22c55e",
+      summary: "Validator clique \"Approve\" → loop sur tous les investments locked",
+      code: [
+        "POST /api/xrpl/escrow/finish { sequence: 513962 }",
+        "EscrowFinish {",
+        "  Account       = rQDN8QJX… (platform signe)",
+        "  Owner         = rGguTpZQ… (créateur escrow)",
+        "  OfferSequence = 513962",
+        "}",
+        "→ XRP libérés → Destination = rG1Lt5T1… ✓",
+        "→ status → released (Supabase + Zustand)",
+      ],
+    },
+  ];
+
+  return (
+    <div className="h-full flex flex-col px-10 py-8 gap-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Appendix A1</Tag>
+          <h2 className="text-4xl font-black text-white leading-tight">
+            Comment ça marche — Escrow end-to-end
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">14 / 17</span>
+      </div>
+
+      {/* 3 wallets */}
+      <div className="grid grid-cols-3 gap-3">
+        {wallets.map((w) => (
+          <div
+            key={w.label}
+            className="rounded-xl p-3 flex flex-col gap-1"
+            style={{ background: `${w.color}08`, border: `1px solid ${w.color}25` }}
+          >
+            <div className="flex items-center gap-2">
+              <Wallet className="h-3.5 w-3.5" style={{ color: w.color }} />
+              <span className="text-xs font-black uppercase tracking-wide" style={{ color: w.color }}>{w.label}</span>
+            </div>
+            <code className="text-[10px] font-mono text-white/40">{w.addr}</code>
+            <p className="text-[10px] text-white/50 italic">&quot;{w.quote}&quot;</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Steps */}
+      <div className="flex-1 grid grid-cols-3 gap-3">
+        {steps.map((s) => (
+          <div
+            key={s.n}
+            className="rounded-2xl p-4 flex flex-col gap-2"
+            style={{ background: `${s.color}06`, border: `1px solid ${s.color}20` }}
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                style={{ background: `${s.color}20`, color: s.color }}
+              >
+                {s.n}
+              </div>
+              <span className="text-xs font-black uppercase tracking-wide" style={{ color: s.color }}>{s.label}</span>
+            </div>
+            <p className="text-[10px] text-white/45 leading-relaxed">{s.summary}</p>
+            <div
+              className="rounded-lg px-3 py-2 font-mono text-[9px] leading-relaxed space-y-0.5 flex-1"
+              style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${s.color}15` }}
+            >
+              {s.code.map((line, i) => (
+                <p
+                  key={i}
+                  className={line.startsWith("  ") ? "text-white/50 pl-2" : line.startsWith("→") ? "" : "text-white/70"}
+                  style={line.startsWith("→") ? { color: s.color } : {}}
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Appendix: DID + Stack ────────────────────────────────────────────────────
+
+function SlideDIDArch() {
+  const didSteps = [
+    { step: "User entre son adresse XRPL", mono: false },
+    { step: "/api/xrpl/did/resolve?address=rXXX", mono: true },
+    { step: "server-side → évite les timeouts browser", mono: false },
+    { step: "account_objects { type: \"did\" } devnet", mono: true },
+    { step: "décode le hex → DID document JSON", mono: false },
+    { step: "verifyDIDDocument() → valid si adresse correspond", mono: true },
+    { step: "identity-store (Zustand + localStorage)", mono: false },
+    { step: "requis pour → /tokenize + /borrow", mono: false },
+  ];
+
+  const stackLayers = [
+    { layer: "Next.js 15 App Router", detail: "Pages, layouts, SSR + RSC", color: "#ffffff" },
+    { layer: "/api/xrpl/*", detail: "Server-only — secrets, signing, WebSocket XRPL", color: "#00e5cc" },
+    { layer: "Zustand (persist)", detail: "Portfolio, identity, investments — survit aux refresh", color: "#ffaa00" },
+    { layer: "Supabase", detail: "Profiles · assets · lending_positions · transactions", color: "#0099ff" },
+    { layer: "XRPL Devnet", detail: "EscrowCreate/Finish réels · DIDSet · Payments", color: "#a855f7" },
+  ];
+
+  return (
+    <div className="h-full flex flex-col px-10 py-8 gap-5">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Appendix A2</Tag>
+          <h2 className="text-4xl font-black text-white leading-tight">
+            DID on-chain · Stack layers
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">15 / 17</span>
+      </div>
+
+      <div className="flex-1 grid grid-cols-2 gap-4">
+        {/* DID flow */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: "rgba(0,229,204,0.05)", border: "1px solid rgba(0,229,204,0.2)" }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Fingerprint className="h-4 w-4 text-[#00e5cc]" />
+            <p className="text-sm font-black text-white uppercase tracking-wide">DID Resolution Flow</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {didSteps.map((d, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-[9px] font-mono text-[#00e5cc]/40 w-4 shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
+                {d.mono
+                  ? <code className="text-[10px] font-mono text-[#00e5cc]">{d.step}</code>
+                  : <span className="text-[10px] text-white/50">{d.step}</span>
+                }
+              </div>
+            ))}
+          </div>
+          <div
+            className="rounded-lg px-3 py-2 mt-auto font-mono text-[9px] space-y-0.5"
+            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,229,204,0.15)" }}
+          >
+            <p className="text-white/30">stored in identity-store:</p>
+            <p className="text-[#00e5cc]">xrplAddress · did · kycStatus</p>
+            <p className="text-white/30">+ localStorage persist</p>
+          </div>
+        </div>
+
+        {/* Stack */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: "rgba(0,153,255,0.05)", border: "1px solid rgba(0,153,255,0.2)" }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Layers className="h-4 w-4 text-[#0099ff]" />
+            <p className="text-sm font-black text-white uppercase tracking-wide">Stack</p>
+          </div>
+          <div className="flex flex-col gap-2 flex-1">
+            {stackLayers.map((l, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="flex flex-col items-center gap-0.5 shrink-0">
+                  <div className="w-2 h-2 rounded-full" style={{ background: l.color }} />
+                  {i < stackLayers.length - 1 && <div className="w-px flex-1 min-h-[16px]" style={{ background: `${l.color}30` }} />}
+                </div>
+                <div className="flex-1 pb-1">
+                  <code className="text-[10px] font-mono" style={{ color: l.color }}>{l.layer}</code>
+                  <p className="text-[9px] text-white/35 leading-relaxed">{l.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div
+            className="rounded-lg px-3 py-2 font-mono text-[9px]"
+            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,153,255,0.15)" }}
+          >
+            <p className="text-white/30">persistence key:</p>
+            <p className="text-[#ffaa00]">liquidx-portfolio-v4</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Appendix: Borrow Flow ────────────────────────────────────────────────────
+
+function SlideBorrowFlow() {
+  const layers = [
+    { name: "UI (borrow/page.tsx)", color: "#ffffff", arrow: true },
+    { name: "lending-service.ts", color: "#00e5cc", note: "abstraction layer", arrow: true },
+    { name: "xrpl-client.ts", color: "#ffaa00", note: "client HTTP wrapper", arrow: true },
+    { name: "/api/xrpl/*", color: "#0099ff", note: "Next.js API routes (server-side)", arrow: true },
+    { name: "xrpl.ts", color: "#a855f7", note: "signing + XRPL devnet", arrow: false },
+  ];
+
+  const steps = [
+    {
+      n: "1", title: "Formulaire (borrow/page.tsx)", color: "#00e5cc",
+      lines: [
+        "Choisit asset tokenisé (loanBrokers status: active)",
+        "Saisit montant, durée",
+        "handleSubmit → requestLoan(lending-service)",
+      ],
+    },
+    {
+      n: "2", title: "requestLoan() (lending-service.ts)", color: "#ffaa00",
+      lines: [
+        "Vérifie le DID — bloque si pas vérifié",
+        "→ originateLoan POST /api/xrpl/loan/originate",
+        "Retourne { loanId, xrplHash }",
+      ],
+    },
+    {
+      n: "3", title: "originateLoan() (xrpl.ts)", color: "#0099ff",
+      lines: [
+        "Simule LoanSet (XLS-66 pas encore live)",
+        "Retourne hash mock + loanId",
+      ],
+    },
+    {
+      n: "4", title: "Store (portfolio-store.ts)", color: "#a855f7",
+      lines: [
+        "Vérifie LoanBroker pour cet asset → active",
+        "Crée Loan + schedule 3 remboursements",
+        "Met à jour loanBrokers.activeLoansCount",
+        "fire-and-forget sync → Supabase loans",
+      ],
+    },
+  ];
+
+  return (
+    <div className="h-full flex flex-col px-10 py-8 gap-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Appendix A3</Tag>
+          <h2 className="text-4xl font-black text-white leading-tight">
+            Borrow flow — couche par couche
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">16 / 17</span>
+      </div>
+
+      <div className="flex-1 grid grid-cols-3 gap-4">
+        {/* Layer diagram */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-2"
+          style={{ background: "rgba(0,229,204,0.04)", border: "1px solid rgba(0,229,204,0.15)" }}
+        >
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Vue d&apos;ensemble</p>
+          {layers.map((l) => (
+            <div key={l.name} className="flex flex-col items-start gap-0.5">
+              <div
+                className="rounded-lg px-3 py-1.5 w-full font-mono text-[10px]"
+                style={{ background: `${l.color}10`, border: `1px solid ${l.color}25`, color: l.color }}
+              >
+                {l.name}
+                {l.note && <span className="text-white/30 ml-2 font-sans text-[9px]">← {l.note}</span>}
+              </div>
+              {l.arrow && (
+                <div className="flex items-center justify-center w-full">
+                  <ArrowDown className="h-3 w-3 text-white/15" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Repayment */}
+          <div
+            className="rounded-lg px-3 py-2 mt-auto text-[9px] leading-relaxed"
+            style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}
+          >
+            <p className="text-[#a855f7] font-black text-[9px] uppercase tracking-wide mb-1">Remboursement</p>
+            <p className="text-white/40 font-mono">repayInstalment()</p>
+            <p className="text-white/30">→ LoanPay → /api/xrpl/loan/repay</p>
+            <p className="text-white/30">→ realLoanPay(): Payment XRP</p>
+            <p className="text-white/30">→ user wallet → platform wallet</p>
+            <p className="text-white/20 mt-1">1 XRP symbolique sur devnet</p>
+          </div>
+        </div>
+
+        {/* Steps 2-col */}
+        <div className="col-span-2 grid grid-cols-2 gap-3">
+          {steps.map((s) => (
+            <div
+              key={s.n}
+              className="rounded-2xl p-4 flex flex-col gap-2"
+              style={{ background: `${s.color}06`, border: `1px solid ${s.color}20` }}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
+                  style={{ background: `${s.color}20`, color: s.color }}
+                >
+                  {s.n}
+                </div>
+                <p className="text-[10px] font-black text-white leading-tight">{s.title}</p>
+              </div>
+              <div className="space-y-1">
+                {s.lines.map((line, i) => (
+                  <p key={i} className="text-[9px] text-white/40 font-mono leading-relaxed">{line}</p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Appendix: Real vs Simulated ─────────────────────────────────────────────
+
+function SlideRealVsSim() {
+  const table = [
+    { step: "Collateral escrow (lock)", status: "real", detail: "EscrowCreate réel sur devnet" },
+    { step: "Vérification collateral", status: "real", detail: "account_objects XRPL réel" },
+    { step: "LoanSet (origination)", status: "sim", detail: "XLS-66 pas encore dispo sur devnet" },
+    { step: "LoanPay (remboursement)", status: "real", detail: "Payment XRP réel sur devnet" },
+    { step: "Scoring / taux", status: "sim", detail: "In-app via loan-pricing.ts" },
+  ];
+
+  const keyData = [
+    { key: "Test wallet (user)", val: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd", color: "#00e5cc" },
+    { key: "Platform wallet", val: "rQDN8QJX… (hardcodé dans xrpl.ts)", color: "#0099ff" },
+    { key: "Collateral requis", val: "10% de la valeur de l'asset (COLLATERAL_RATIO = 0.1)", color: "#ffaa00" },
+    { key: "Schedule", val: "3 mensualités égales, calculées dans le store", color: "#a855f7" },
+    { key: "Persistence", val: "Zustand (liquidx-portfolio-v4) + sync Supabase", color: "#22c55e" },
+    { key: "XRPL network", val: "wss://s.devnet.rippletest.net:51233", color: "#ffffff" },
+  ];
+
+  return (
+    <div className="h-full flex flex-col px-10 py-8 gap-5">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Appendix A4</Tag>
+          <h2 className="text-4xl font-black text-white leading-tight">
+            Réel vs Simulé · Données clés
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">17 / 17</span>
+      </div>
+
+      <div className="flex-1 grid grid-cols-2 gap-4">
+        {/* Real vs sim table */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: "rgba(0,229,204,0.04)", border: "1px solid rgba(0,229,204,0.15)" }}
+        >
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Ce qui est réel vs simulé</p>
+          <div className="flex flex-col gap-2">
+            {/* header */}
+            <div className="grid grid-cols-3 gap-2 pb-2 border-b border-white/6">
+              <span className="text-[9px] text-white/25 uppercase tracking-wide">Étape</span>
+              <span className="text-[9px] text-white/25 uppercase tracking-wide">Status</span>
+              <span className="text-[9px] text-white/25 uppercase tracking-wide">Détail</span>
+            </div>
+            {table.map((r) => (
+              <div key={r.step} className="grid grid-cols-3 gap-2 items-start">
+                <span className="text-[10px] text-white/60 leading-tight">{r.step}</span>
+                <span
+                  className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded self-start"
+                  style={
+                    r.status === "real"
+                      ? { color: "#22c55e", background: "#22c55e15", border: "1px solid #22c55e25" }
+                      : { color: "#ffaa00", background: "#ffaa0015", border: "1px solid #ffaa0025" }
+                  }
+                >
+                  {r.status === "real" ? "✅ Réel" : "🟡 Simulé"}
+                </span>
+                <span className="text-[9px] text-white/35 leading-tight">{r.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Key data */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: "rgba(0,153,255,0.04)", border: "1px solid rgba(0,153,255,0.15)" }}
+        >
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Données clés</p>
+          <div className="flex flex-col gap-3">
+            {keyData.map((d) => (
+              <div key={d.key} className="flex flex-col gap-0.5">
+                <span className="text-[9px] text-white/30 uppercase tracking-wide">{d.key}</span>
+                <code className="text-[10px] font-mono" style={{ color: d.color }}>{d.val}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Slide map ────────────────────────────────────────────────────────────────
 
 const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
@@ -1959,6 +2398,10 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
   identity: SlideIdentity,
   "xrpl-diagram": SlideXRPLDiagram,
   appendix: SlideAppendix,
+  "arch-flow": SlideArchFlow,
+  "did-arch": SlideDIDArch,
+  "borrow-flow": SlideBorrowFlow,
+  "real-vs-sim": SlideRealVsSim,
 };
 
 // ─── Shell ────────────────────────────────────────────────────────────────────

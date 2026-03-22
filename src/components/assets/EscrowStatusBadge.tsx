@@ -31,6 +31,11 @@ const FUNDING_CONFIG: Record<
     icon: <AlertTriangle className="h-3 w-3" />,
     className: "bg-orange-500/15 border-orange-500/25 text-orange-400",
   },
+  repaid: {
+    label: "Repaid",
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    className: "bg-emerald-500/15 border-emerald-500/25 text-emerald-400",
+  },
 };
 
 const INVESTMENT_CONFIG: Record<
@@ -77,6 +82,11 @@ const INVESTMENT_CONFIG: Record<
     label: "Locked in Escrow",
     icon: <Lock className="h-3 w-3" />,
     className: "bg-yellow-500/15 border-yellow-500/25 text-yellow-400",
+  },
+  repaid: {
+    label: "Repaid",
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    className: "bg-emerald-500/15 border-emerald-500/25 text-emerald-400",
   },
 };
 

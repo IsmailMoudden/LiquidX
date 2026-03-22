@@ -1,0 +1,17 @@
+NEXT_PUBLIC_SUPABASE_URL=https://byfrhzqlyfjcvysqxcfg.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZnJoenFseWZqY3Z5c3F4Y2ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTA2NzgsImV4cCI6MjA4OTY2NjY3OH0.vOlngFM6M_Ijs8GfZSoSHoXC9mmcAiC1RFj2A_qyDOg
+
+
+# ─── XRPL Devnet ──────────────────────────────────────────────────────────────
+# Generate wallets at: https://faucet.devnet.rippletest.net/accounts
+
+# Platform wallet (server-only — NEVER prefix with NEXT_PUBLIC_)
+XRPL_PLATFORM_SECRET=sEd7rhfvaNyp9swzezaAkubkS5V9CWq
+XRPL_PLATFORM_ADDRESS=rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik
+
+# Network (devnet WSS endpoint)
+XRPL_WSS=wss://s.devnet.rippletest.net:51233
+
+# Exposed to client (safe — no secrets)
+NEXT_PUBLIC_XRPL_NETWORK_ID=1
+NEXT_PUBLIC_XRPL_EXPLORER=https://devnet.xrpl.org/transactions

@@ -110,6 +110,12 @@ export async function signCollateralContract(
   return post("/api/xrpl/contract/sign", { issuerAddress, contractJson });
 }
 
+// ─── Vault Loan Repayment ─────────────────────────────────────────────────────
+
+export async function repayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymentResult> {
+  return post("/api/xrpl/vault/repay", { totalAmountUsd });
+}
+
 // ─── Legacy Payment ───────────────────────────────────────────────────────────
 
 export async function sendXRPLPayment(

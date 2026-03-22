@@ -584,6 +584,58 @@ async function realContractSign(
   }
 }
 
+// ─── Vault Loan Repayment ─────────────────────────────────────────────────────
+// Asset owner repays the vault loan (principal + interest) back to the platform.
+// The platform then marks each lender's position as "repaid" in the store.
+
+export async function repayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymentResult> {
+  try {
+    return await realRepayVaultLoan(totalAmountUsd);
+  } catch (err) {
+    console.warn("[XRPL] VaultRepay fallback:", err);
+    await delay(900 + Math.random() * 600);
+    return makeResult(mockHash(), mockLedger(), "Payment");
+  }
+}
+
+async function realRepayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymentResult> {
+  const { Client, Wallet } = await import("xrpl");
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  await client.connect();
+  try {
+    // Asset owner sends payment to platform address
+    const assetOwnerWallet = Wallet.fromSeed(getAssetOwnerSecret());
+    const drops = await usdToDrops(totalAmountUsd);
+    const xrp = parseInt(drops) / 1_000_000;
+    console.log(`[XRPL] VaultRepay: $${totalAmountUsd} USD → ${xrp} XRP`);
+    const tx = await client.submitAndWait(
+      {
+        TransactionType: "Payment",
+        Account: assetOwnerWallet.address,
+        Amount: drops,
+        Destination: getPlatformAddress(),
+        Memos: [{
+          Memo: {
+            MemoType: Buffer.from("LiquidX/VaultRepay").toString("hex").toUpperCase(),
+            MemoData: Buffer.from(JSON.stringify({ totalAmountUsd, repaidAt: new Date().toISOString() }))
+              .toString("hex")
+              .toUpperCase(),
+          },
+        }],
+      } as Parameters<typeof client.submitAndWait>[0],
+      { wallet: assetOwnerWallet }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (tx.result as any).meta ?? (tx.result as any).metaData;
+    if (meta?.TransactionResult !== "tesSUCCESS") {
+      throw new Error(`VaultRepay Payment failed on-chain: ${meta?.TransactionResult}`);
+    }
+    return makeResult(tx.result.hash as string, tx.result.ledger_index as number, "Payment", "confirmed");
+  } finally {
+    await client.disconnect();
+  }
+}
+
 // ─── Legacy Payment ───────────────────────────────────────────────────────────
 
 export async function sendXRPLPayment(

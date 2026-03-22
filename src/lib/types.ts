@@ -25,7 +25,7 @@ export type AssetCategory =
   | "private-equity"
   | "commodities";
 
-export type FundingStatus = "open" | "funded" | "released" | "refunded" | "expired";
+export type FundingStatus = "open" | "funded" | "released" | "refunded" | "expired" | "repaid";
 
 export interface Asset {
   id: string;
@@ -139,7 +139,8 @@ export type LendingPositionStatus =
   | "locked"
   | "pending"
   | "released"
-  | "refunded";
+  | "refunded"
+  | "repaid";
 
 export interface LendingPosition {
   id: string;
@@ -170,6 +171,10 @@ export interface LendingPosition {
   xrplEscrowSequence?: number;
   xrplReleaseHash?: string;
   xrplCancelHash?: string;
+  xrplRepayHash?: string;
+  // Repayment
+  repaidAt?: string;
+  interestEarned?: number;
   // Validator approval
   validatorApproved?: boolean;
   validatorFee?: number;
@@ -293,6 +298,7 @@ export type TransactionType =
   | "lend"           // lender deposits into vault (was: invest)
   | "lending-release" // lender's position released (was: release)
   | "lending-refund" // lender's position refunded (was: refund)
+  | "lending-repaid" // vault loan repaid — principal + interest returned to lenders
   | "loan-request"   // borrower requests a loan (was: loan-originate)
   | "loan-repay"     // borrower repays an instalment
   | "loan-default"

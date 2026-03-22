@@ -280,8 +280,21 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <div className="space-y-2">
                 {myActiveInvestments.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between text-sm">
-                    <span className="text-white/50 font-mono">{formatCurrency((inv as any).amount ?? 0)}</span>
-                    <InvestmentStatusBadge status={inv.status} />
+                    <div>
+                      <span className="text-white/50 font-mono">{formatCurrency((inv as any).amount ?? 0)}</span>
+                      {inv.status === "repaid" && inv.interestEarned !== undefined && (
+                        <p className="text-xs text-emerald-400 font-mono mt-0.5">
+                          +{formatCurrency(inv.interestEarned)} interest
+                        </p>
+                      )}
+                    </div>
+                    {inv.status === "repaid" ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" />Repaid ✓
+                      </span>
+                    ) : (
+                      <InvestmentStatusBadge status={inv.status} />
+                    )}
                   </div>
                 ))}
               </div>

@@ -44,6 +44,7 @@ interface PortfolioActions {
     xrpl: XRPLSettlement & { loanId: string }
   ) => { success: boolean; loanId?: string; error?: string };
   repayLoan: (loanId: string, repaymentId: string, xrpl: XRPLSettlement) => { success: boolean; error?: string };
+  repayVaultPositions: (assetId: string, xrpl: XRPLSettlement) => { success: boolean; error?: string };
 
   // Legacy
   buyAsset: (assetId: string, tokenAmount: number, xrpl?: XRPLSettlement, tonAddress?: string) => { success: boolean; error?: string };
@@ -613,6 +614,98 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
               updated_at: paidAt,
             }).catch(console.warn);
             saveTransaction(uid, tx).catch(console.warn);
+          })
+        );
+
+        return { success: true };
+      },
+
+      // ── REPAY VAULT POSITIONS (VaultRepay) ────────────────────────────────
+      // Inverse of approveAndRelease. The asset owner repays the loan (principal
+      // + accrued interest) to every lender whose position is "released".
+
+      repayVaultPositions: (assetId, xrpl) => {
+        const state = get();
+        const asset = state.assets.find((a) => a.id === assetId);
+        if (!asset) return { success: false, error: "Asset not found" };
+
+        const releasedInvestments = state.investments.filter(
+          (i) => i.assetId === assetId && i.status === "released"
+        );
+        if (releasedInvestments.length === 0)
+          return { success: false, error: "No released positions to repay" };
+
+        const repaidAt = new Date().toISOString();
+        let totalRepaid = 0;
+        const newTransactions: Transaction[] = [];
+
+        const updatedInvestments = state.investments.map((inv) => {
+          if (inv.assetId !== assetId || inv.status !== "released") return inv;
+
+          const principal = (inv as any).amount ?? 0;
+          const refTs = inv.releasedAt ?? (inv as any).timestamp ?? new Date().toISOString();
+          const daysElapsed = Math.max(
+            1,
+            (Date.now() - new Date(refTs).getTime()) / 86_400_000
+          );
+          const interest =
+            Math.round(
+              principal * (asset.projectedYield / 100) * (daysElapsed / 365) * 100
+            ) / 100;
+
+          const total = principal + interest;
+          totalRepaid += total;
+
+          newTransactions.push({
+            id: `tx-${generateId()}`,
+            type: "lending-repaid",
+            assetId,
+            assetName: asset.name,
+            tokens: inv.tokens ?? 0,
+            price: inv.tokenPrice ?? 0,
+            total,
+            timestamp: repaidAt,
+            xrplHash: xrpl.hash,
+            xrplStatus: xrpl.status,
+            xrplExplorerUrl: xrpl.explorerUrl,
+            xrplLedger: xrpl.ledger,
+            xrplTxType: "Payment",
+            investmentId: inv.id,
+          });
+
+          return {
+            ...inv,
+            status: "repaid" as const,
+            repaidAt,
+            interestEarned: interest,
+            xrplRepayHash: xrpl.hash,
+          };
+        });
+
+        set({
+          usdcBalance: state.usdcBalance + totalRepaid,
+          investments: updatedInvestments,
+          transactions: [...newTransactions, ...state.transactions],
+          assets: state.assets.map((a) =>
+            a.id === assetId ? { ...a, fundingStatus: "repaid" as const } : a
+          ),
+        });
+
+        // Fire-and-forget Supabase sync
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            const repaidInvs = updatedInvestments.filter(
+              (i) => i.assetId === assetId && i.status === "repaid"
+            );
+            repaidInvs.forEach((inv) =>
+              updateLendingPosition(uid, inv.id, {
+                status: "repaid",
+                released_at: inv.repaidAt,
+              }).catch(console.warn)
+            );
+            newTransactions.forEach((tx) => saveTransaction(uid, tx).catch(console.warn));
           })
         );
 
