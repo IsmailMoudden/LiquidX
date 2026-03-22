@@ -1017,15 +1017,18 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
 
       loadFromSupabase: async (userId: string) => {
         try {
-          // ── Assets: load from DB, seed on first run ─────────────────────────
+          // ── Assets: load from DB, upsert any new platform assets ────────────
           const dbAssets = await loadAssets();
-          if (dbAssets.length > 0) {
-            set({ assets: dbAssets });
-          } else {
-            // First ever login — seed all platform assets to DB
-            await seedAssets(MOCK_ASSETS);
-            set({ assets: MOCK_ASSETS });
+          const dbIds = new Set(dbAssets.map((a) => a.id));
+          const newAssets = MOCK_ASSETS.filter((a) => !dbIds.has(a.id));
+          if (newAssets.length > 0) {
+            // Upsert assets added to MOCK_ASSETS since last seed (e.g. demo asset)
+            await seedAssets(newAssets);
           }
+          const mergedAssets = newAssets.length > 0
+            ? [...newAssets, ...dbAssets]
+            : dbAssets.length > 0 ? dbAssets : MOCK_ASSETS;
+          set({ assets: mergedAssets });
 
           // ── User portfolio ──────────────────────────────────────────────────
           const { investments, loans, transactions } = await loadUserPortfolio(userId);
