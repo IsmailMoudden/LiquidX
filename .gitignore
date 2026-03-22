@@ -28,3 +28,12 @@ yarn-error.log*
 
 # Claude
 .claude/settings.local.json
+claude.md
+
+# Personal / hackathon notes
+pitch-script.md
+pitch.md
+draft.md
+
+# Build artifacts
+tsconfig.tsbuildinfo
