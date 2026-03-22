@@ -109,7 +109,7 @@ export default function ValidatorPage() {
                     {/* Asset summary */}
                     <div className="flex items-center gap-4 p-5 border-b border-white/6">
                       <div className="relative h-14 w-20 rounded-lg overflow-hidden shrink-0">
-                        <Image src={asset.image} alt={asset.name} fill className="object-cover" />
+                        <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -171,7 +171,7 @@ export default function ValidatorPage() {
                 <Link key={asset.id} href={`/assets/${asset.id}`}>
                   <div className="flex items-center gap-4 rounded-2xl border border-white/6 bg-[#0d0d0d] px-5 py-4 hover:border-white/15 transition-all group">
                     <div className="relative h-10 w-14 rounded-lg overflow-hidden shrink-0">
-                      <Image src={asset.image} alt={asset.name} fill className="object-cover" />
+                      <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white group-hover:text-primary transition-colors truncate">{asset.name}</p>

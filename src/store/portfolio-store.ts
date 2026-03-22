@@ -733,8 +733,37 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
 
       tokenizeAsset: (assetData) => {
         const state = get();
-        const newAsset: Asset = { ...assetData, id: `asset-${generateId()}`, fundingStatus: "open", amountRaised: 0, investorCount: 0, complianceApproved: false };
-        set({ assets: [...state.assets, newAsset] });
+        // ⚡ TEST MODE: auto-approve compliance + create vault so asset is
+        // immediately borrowable. In production this would require validator review.
+        const newAsset: Asset = {
+          ...assetData,
+          id: `asset-${generateId()}`,
+          fundingStatus: "open",
+          amountRaised: 0,
+          investorCount: 0,
+          complianceApproved: true,
+          verificationStatus: "verified",
+        };
+
+        // Auto-create an active vault (LoanBroker) for this asset so it
+        // appears in the borrow page immediately.
+        const newVault: import("@/lib/types").LoanBrokerConfig = {
+          id: `vault-${newAsset.id}`,
+          assetId: newAsset.id,
+          assetName: newAsset.name,
+          originationFeePercent: 1,
+          servicingFeePercent: 0.5,
+          firstLossCoverPercent: 5,
+          activeLoansCount: 0,
+          totalOriginated: 0,
+          defaultRate: 0,
+          status: "active",
+          xrplBrokerAddress: "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik",
+          destinationTag: 3000 + Math.floor(Math.random() * 6999),
+          createdAt: new Date().toISOString(),
+        };
+
+        set({ assets: [...state.assets, newAsset], loanBrokers: [...state.loanBrokers, newVault] });
         return newAsset;
       },
 

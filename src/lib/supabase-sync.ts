@@ -53,7 +53,7 @@ function rowToAsset(r: Record<string, any>): Asset {
     category: r.category,
     description: r.description ?? "",
     longDescription: r.long_description ?? "",
-    image: r.image_url ?? r.image ?? "",
+    image: r.image_url ?? r.image ?? "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80",
     location: r.location ?? "",
     totalValue: r.total_value ?? 0,
     tokenSupply: r.token_supply ?? 0,

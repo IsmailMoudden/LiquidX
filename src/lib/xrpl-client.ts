@@ -30,12 +30,14 @@ import type {
 // ─── Internal fetch helper ────────────────────────────────────────────────────
 
 async function post<T>(path: string, body: unknown): Promise<T> {
+  console.log(`[xrpl-client] POST ${path}`, body);
   const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  console.log(`[xrpl-client] ${path} response (${res.status}):`, json);
   if (!res.ok) throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
   return json as T;
 }

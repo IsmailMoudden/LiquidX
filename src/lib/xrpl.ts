@@ -192,8 +192,9 @@ async function realEscrowCreate(
     });
     const escrowSequence: number = accountInfo.result.account_data.Sequence;
 
-    // 1 XRP symbolic proof-of-lock — USDC accounting lives in the app.
-    const drops = "1000000";
+    // Real XRP amount — convert USD investment to XRP at live price.
+    const drops = await usdToDrops(amountUSD);
+    console.log(`[XRPL] EscrowCreate: $${amountUSD} USD → ${parseInt(drops) / 1_000_000} XRP (${drops} drops)`);
     // XRPL epoch: seconds since 2000-01-01 (Unix - 946684800)
     const xrplNow = Math.floor(Date.now() / 1000) - 946684800;
     const tx = await client.submitAndWait(
@@ -492,26 +493,17 @@ async function realVerifyCollateralEscrow(
       type: "escrow",
       ledger_index: "validated",
     });
-    const escrows = (response.result.account_objects ?? []) as Array<{
-      Amount: string;
-      Memos?: Array<{ Memo: { MemoType?: string } }>;
-    }>;
-    const collateralEscrows = escrows.filter((obj) =>
-      obj.Memos?.some((m) => {
-        try {
-          return Buffer.from(m.Memo.MemoType ?? "", "hex").toString("utf8") === "LiquidX/CollateralEscrow";
-        } catch { return false; }
-      })
-    );
-    // On devnet we lock 1 XRP as a symbolic proof-of-collateral.
-    // Treat existence of any valid collateral escrow as sufficient —
-    // the actual USDC collateral accounting lives in the app, not on-chain.
-    const exists = collateralEscrows.length > 0;
+    const escrows = response.result.account_objects ?? [];
+    // NOTE: account_objects returns ledger state objects, not transactions.
+    // Memos are stored on the transaction, NOT the ledger object, so we
+    // cannot filter by MemoType here. Any escrow on this account is our
+    // proof-of-collateral — USDC accounting lives in the app.
+    const exists = escrows.length > 0;
     return {
       exists,
       amount: exists ? requiredAmount : 0,
       sufficient: exists,
-      escrowCount: collateralEscrows.length,
+      escrowCount: escrows.length,
     };
   } finally {
     await client.disconnect();

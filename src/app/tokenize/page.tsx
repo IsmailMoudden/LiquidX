@@ -93,6 +93,8 @@ interface FormState {
   docType: string;         // e.g. "Title Deed"
   docIssuedBy: string;     // e.g. "Dubai Land Department"
   docDate: string;         // YYYY-MM-DD
+  docFileName: string;     // name of the dropped file
+  docHash: string;         // SHA-256 of the dropped file
 }
 
 const INITIAL_FORM: FormState = {
@@ -110,6 +112,8 @@ const INITIAL_FORM: FormState = {
   docType: "",
   docIssuedBy: "",
   docDate: "",
+  docFileName: "",
+  docHash: "",
 };
 
 // ─── Eligibility Gate Component ───────────────────────────────────────────────
@@ -271,6 +275,159 @@ function StepIndicator({ current }: { current: Step }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Doc Drop Zone ────────────────────────────────────────────────────────────
+
+async function hashFile(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
+
+function DocDropZone({
+  form,
+  update,
+}: {
+  form: FormState;
+  update: (f: keyof FormState, v: string) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [hashing, setHashing] = useState(false);
+
+  const processFile = async (file: File) => {
+    setHashing(true);
+    try {
+      const hash = await hashFile(file);
+      update("docFileName", file.name);
+      update("docHash", hash);
+      // Auto-detect doc type from filename
+      if (!form.docType) {
+        const lower = file.name.toLowerCase();
+        if (lower.includes("deed") || lower.includes("title")) update("docType", "Title Deed");
+        else if (lower.includes("passport")) update("docType", "Passport");
+        else if (lower.includes("contract")) update("docType", "Contract");
+        else if (lower.includes("certificate")) update("docType", "Certificate");
+        else update("docType", "Ownership Document");
+      }
+    } finally {
+      setHashing(false);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
+  const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  return (
+    <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-4">
+      <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+        <Upload className="h-4 w-4 text-white/40" />
+        Proof of Ownership Document
+      </h3>
+      <p className="text-xs text-white/40 leading-relaxed">
+        Drop your ownership document (PDF, image, or scan). Only its SHA-256 hash
+        is computed in your browser — the file itself is <span className="text-white/60">never uploaded or stored</span>.
+      </p>
+
+      {/* Drop zone */}
+      <label
+        htmlFor="doc-file-input"
+        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 cursor-pointer transition-all ${
+          dragging
+            ? "border-primary bg-primary/5 scale-[1.01]"
+            : form.docFileName
+            ? "border-emerald-500/40 bg-emerald-500/5"
+            : "border-white/10 bg-white/2 hover:border-white/20 hover:bg-white/3"
+        }`}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        <input
+          id="doc-file-input"
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+          className="sr-only"
+          onChange={onFileInput}
+        />
+
+        {hashing ? (
+          <>
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            <p className="text-sm text-white/50">Computing SHA-256 hash…</p>
+          </>
+        ) : form.docFileName ? (
+          <>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+              <ShieldCheck className="h-6 w-6 text-emerald-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-white">{form.docFileName}</p>
+              <p className="text-[10px] text-white/30 font-mono mt-1 break-all px-4">
+                SHA-256: {form.docHash.slice(0, 16)}…{form.docHash.slice(-8)}
+              </p>
+              <p className="text-xs text-emerald-400 mt-1">✓ Hash computed — click to replace</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
+              <Upload className="h-6 w-6 text-white/30" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-white/70">Drop your document here</p>
+              <p className="text-xs text-white/30 mt-1">or click to browse — PDF, image, or scan</p>
+            </div>
+          </>
+        )}
+      </label>
+
+      {/* Document metadata */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-medium text-white/50 mb-1.5 block">Document Type</label>
+          <Input
+            placeholder="e.g. Title Deed"
+            value={form.docType}
+            onChange={(e) => update("docType", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-white/50 mb-1.5 block">Issued By</label>
+          <Input
+            placeholder="e.g. Dubai Land Department"
+            value={form.docIssuedBy}
+            onChange={(e) => update("docIssuedBy", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-white/50 mb-1.5 block">Issue Date</label>
+          <Input
+            type="date"
+            value={form.docDate}
+            onChange={(e) => update("docDate", e.target.value)}
+            className="font-mono"
+          />
+        </div>
+      </div>
+      <p className="text-[10px] text-white/25 flex items-center gap-1">
+        <ShieldCheck className="h-3 w-3" />
+        Document hash will be anchored to your XRP DID on-chain at submission.
+      </p>
     </div>
   );
 }
@@ -439,47 +596,7 @@ function AssetStep({
       </div>
 
       {/* Proof of ownership */}
-      <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-4">
-        <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-          <Upload className="h-4 w-4 text-white/40" />
-          Proof of Ownership Document
-        </h3>
-        <p className="text-xs text-white/40">
-          Provide details of the legal document that confirms your ownership.
-          The document hash will be anchored to your DID — the file itself is never stored by LiquidX.
-        </p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Document Type</label>
-            <Input
-              placeholder="e.g. Title Deed"
-              value={form.docType}
-              onChange={(e) => update("docType", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Issued By</label>
-            <Input
-              placeholder="e.g. Dubai Land Department"
-              value={form.docIssuedBy}
-              onChange={(e) => update("docIssuedBy", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Issue Date</label>
-            <Input
-              type="date"
-              value={form.docDate}
-              onChange={(e) => update("docDate", e.target.value)}
-              className="font-mono"
-            />
-          </div>
-        </div>
-        <p className="text-[10px] text-white/25 flex items-center gap-1">
-          <ShieldCheck className="h-3 w-3" />
-          Document metadata is hashed and linked to your XRP DID on-chain.
-        </p>
-      </div>
+      <DocDropZone form={form} update={update} />
 
       {/* Tokenization params */}
       <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-4">
@@ -921,7 +1038,7 @@ export default function TokenizePage() {
             documentType: form.docType,
             issuedBy: form.docIssuedBy,
             issuedDate: form.docDate,
-            hash: "",
+            hash: form.docHash || "",
             borrowerDid: displayDid || "",
             didVerified: isDidVerified,
           },
@@ -963,17 +1080,33 @@ export default function TokenizePage() {
           </div>
         </div>
         <h1 className="text-2xl font-bold text-white mb-2">
-          Asset Submitted for Review
+          Asset Registered & Approved
         </h1>
         <p className="text-white/50 mb-2 leading-relaxed">
           <span className="text-white font-medium">{form.name}</span> has been
-          registered and linked to your verified identity.
+          registered, linked to your verified identity, and is ready to borrow against.
         </p>
-        <p className="text-xs text-white/30 mb-8">
-          A validator will review your asset and proof of ownership within 24–48 hours.
-          You will be notified once approved. To request a loan against this asset,
-          visit the Borrow section after approval.
-        </p>
+
+        {/* Test mode notice */}
+        <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 mb-4 text-left">
+          <p className="text-xs font-semibold text-orange-400 mb-0.5">⚡ Test Mode — Auto-Approved</p>
+          <p className="text-xs text-white/40 leading-relaxed">
+            In production, a validator would review your asset within 24–48 hours before approving.
+            For this demo, compliance is auto-approved so you can test the borrow flow immediately.
+          </p>
+        </div>
+
+        {/* Document hash proof */}
+        {form.docHash && (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 mb-6 text-left">
+            <p className="text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Document Hash Anchored
+            </p>
+            <p className="text-xs text-white/50 mb-1">{form.docFileName}</p>
+            <p className="text-[10px] font-mono text-white/30 break-all">{form.docHash}</p>
+          </div>
+        )}
 
         {/* Trust badges */}
         <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
@@ -981,9 +1114,9 @@ export default function TokenizePage() {
             <ShieldCheck className="h-3 w-3" />
             Identity Verified
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-400">
-            <Layers className="h-3 w-3" />
-            Pending Validator Review
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+            <ShieldCheck className="h-3 w-3" />
+            Compliance Approved
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             <Fingerprint className="h-3 w-3" />

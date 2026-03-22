@@ -70,7 +70,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         <div className="lg:col-span-2 space-y-6">
           {/* Hero */}
           <div className="relative h-72 sm:h-96 rounded-2xl overflow-hidden">
-            <Image src={asset.image} alt={asset.name} fill className="object-cover" />
+            <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/90 via-transparent to-transparent" />
             <div className="absolute bottom-5 left-5 flex items-center gap-2">
               <CategoryBadge category={asset.category} />

@@ -43,28 +43,59 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
 
   const handleApprove = async () => {
     setActionState("approving");
+    console.group(`[ValidatorPanel] Approve & Release — asset: ${asset.id}`);
+    console.log("Locked investments to release:", lockedInvestments.map(i => ({
+      id: i.id,
+      amount: (i as any).amount,
+      xrplEscrowSequence: i.xrplEscrowSequence,
+      status: i.status,
+    })));
     try {
-      const sequence = lockedInvestments[0]?.xrplEscrowSequence;
-      const xrpl = await finishXRPLEscrow(sequence);
-      setLastHash(xrpl.hash);
-      setLastExplorerUrl(xrpl.explorerUrl);
+      // Finish every locked escrow on-chain (one EscrowFinish per investment).
+      let lastXrpl = null;
+      for (const inv of lockedInvestments) {
+        const seq = inv.xrplEscrowSequence;
+        console.log(`[ValidatorPanel] Finishing escrow for investment ${inv.id} — sequence: ${seq ?? "undefined (will simulate)"}`);
+        const xrpl = await finishXRPLEscrow(seq);
+        console.log(`[ValidatorPanel] EscrowFinish result:`, { hash: xrpl.hash, status: xrpl.status, explorerUrl: xrpl.explorerUrl });
+        lastXrpl = xrpl;
+      }
+
+      if (!lastXrpl) {
+        setActionState("error");
+        setErrorMsg("No locked investments found");
+        console.warn("[ValidatorPanel] No locked investments — nothing to release");
+        console.groupEnd();
+        return;
+      }
+
+      setLastHash(lastXrpl.hash);
+      setLastExplorerUrl(lastXrpl.explorerUrl);
+
+      console.log(`[ValidatorPanel] Calling approveAndRelease in store for asset: ${asset.id}`);
       const result = approveAndRelease(asset.id, {
-        hash: xrpl.hash,
-        status: xrpl.status,
-        explorerUrl: xrpl.explorerUrl,
-        ledger: xrpl.ledger,
+        hash: lastXrpl.hash,
+        status: lastXrpl.status,
+        explorerUrl: lastXrpl.explorerUrl,
+        ledger: lastXrpl.ledger,
         txType: "EscrowFinish",
       });
+      console.log("[ValidatorPanel] approveAndRelease result:", result);
+
       if (!result.success) {
         setActionState("error");
         setErrorMsg(result.error ?? "Release failed");
+        console.groupEnd();
         return;
       }
       setActionState("done-approve");
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ValidatorPanel] handleApprove error:", msg);
       setActionState("error");
-      setErrorMsg("XRPL EscrowFinish failed");
+      setErrorMsg(msg || "XRPL EscrowFinish failed");
     }
+    console.groupEnd();
   };
 
   const handleRefund = async () => {

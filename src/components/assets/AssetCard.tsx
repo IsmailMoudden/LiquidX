@@ -19,7 +19,7 @@ export function AssetCard({ asset }: AssetCardProps) {
         {/* Image */}
         <div className="relative h-48 overflow-hidden">
           <Image
-            src={asset.image}
+            src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"}
             alt={asset.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"

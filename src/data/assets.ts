@@ -188,7 +188,7 @@ export const MOCK_ASSETS: Asset[] = [
     description: "250 kg of LBMA-certified gold bullion held in a Swiss vault — used as loan collateral.",
     longDescription:
       "250 kilograms of LBMA Good Delivery gold bullion, certified and held at Brinks vault in Zurich. Each bar bears a unique serial number traceable through the LBMA chain of integrity. Gold is denominated in USD at spot price and revalued daily. At current prices (~$62,000/kg), total collateral value exceeds $15.5M — providing substantial overcollateralization.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Gold_bullion_bars.jpg",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Goldbrick.jpg/640px-Goldbrick.jpg",
     location: "Brinks Vault, Zurich",
     totalValue: 15_500_000,
     tokenSupply: 155_000,

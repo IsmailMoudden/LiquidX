@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Asset } from "@/lib/types";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { formatCurrency } from "@/lib/utils";
@@ -64,7 +64,13 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
   // Find this asset's vault to get the XRPL DestinationTag
   const vault = loanBrokers.find((v) => v.assetId === asset.id);
 
+  const [xrpPrice, setXrpPrice] = useState<number>(0.5);
+  useEffect(() => {
+    fetch("/api/xrpl/price").then(r => r.json()).then(d => setXrpPrice(d.usd ?? 0.5)).catch(() => {});
+  }, []);
+
   const amountNum = Math.max(0, parseFloat(amount) || 0);
+  const xrpEquivalent = xrpPrice > 0 ? Math.ceil(amountNum / xrpPrice) : 0;
   const tokens = Math.floor(amountNum / asset.tokenPrice);
   const remaining = asset.fundingTarget - asset.amountRaised;
   const cappedAmount = Math.min(amountNum, remaining, usdcBalance);
@@ -89,20 +95,23 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
     let xrpl: XRPLPaymentResult;
     try {
       xrpl = await createXRPLEscrow(amountNum, undefined, vault?.destinationTag, asset.id);
+      console.log("[InvestDialog] EscrowCreate result:", { hash: xrpl.hash, status: xrpl.status, escrowSequence: xrpl.escrowSequence });
       setXrplResult(xrpl);
-    } catch {
+    } catch (err) {
+      console.error("[InvestDialog] EscrowCreate failed:", err);
       setStep("error");
       setErrorMsg("XRPL escrow creation failed. Please try again.");
       return;
     }
 
-    // 2 — Persist to store
+    // 2 — Persist to store (escrowSequence is required for EscrowFinish later)
     const result = invest(
       asset.id,
       amountNum,
-      { hash: xrpl.hash, status: xrpl.status, explorerUrl: xrpl.explorerUrl, ledger: xrpl.ledger, txType: "EscrowCreate" },
+      { hash: xrpl.hash, status: xrpl.status, explorerUrl: xrpl.explorerUrl, ledger: xrpl.ledger, txType: "EscrowCreate", escrowSequence: xrpl.escrowSequence },
       xrplAddress!
     );
+    console.log("[InvestDialog] invest() store result:", result);
 
     if (!result.success) {
       setStep("error");
@@ -190,8 +199,11 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
                 <span className="font-mono text-primary">{asset.projectedYield}%</span>
               </div>
               <div className="border-t border-white/8 pt-2 flex justify-between">
-                <span className="text-white/40">Escrow lock</span>
-                <span className="text-yellow-400 font-semibold font-mono">{formatCurrency(amountNum)} USDC</span>
+                <span className="text-white/40">XRPL escrow lock</span>
+                <div className="text-right">
+                  <span className="text-yellow-400 font-semibold font-mono">~{xrpEquivalent.toLocaleString()} XRP</span>
+                  <span className="text-white/30 font-mono text-xs ml-1">(≈{formatCurrency(amountNum)})</span>
+                </div>
               </div>
             </div>
 
