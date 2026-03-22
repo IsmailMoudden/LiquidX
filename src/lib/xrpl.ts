@@ -708,7 +708,7 @@ export interface LoanPayParams {
 export async function submitLoanPay(params: LoanPayParams): Promise<XRPLPaymentResult> {
   // Try real XLS-66 LoanPay first; fall back to Payment tx if LoanID isn't on-chain.
   try {
-    return await withXRPLTimeout(realXLS66LoanPay(params.loanId, params.amountUsdc));
+    return await withXRPLTimeout(realXLS66LoanPay(params.loanId, params.amountUsdc, params.borrowerAddress));
   } catch (err) {
     console.warn("[XRPL] XLS-66 LoanPay → Payment fallback:", err);
     try {
@@ -721,12 +721,14 @@ export async function submitLoanPay(params: LoanPayParams): Promise<XRPLPaymentR
   }
 }
 
-async function realXLS66LoanPay(loanId: string, amountUsdc: number): Promise<XRPLPaymentResult> {
+async function realXLS66LoanPay(loanId: string, amountUsdc: number, borrowerAddress?: string): Promise<XRPLPaymentResult> {
   const { Client, Wallet } = await import("xrpl");
   const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
-    const borrowerWallet = Wallet.fromSeed(getTestUserSecret());
+    // Pick signer wallet based on borrowerAddress — ASSET_OWNER or USER.
+    const isAssetOwner = borrowerAddress === getAssetOwnerAddress();
+    const borrowerWallet = Wallet.fromSeed(isAssetOwner ? getAssetOwnerSecret() : getTestUserSecret());
 
     // Query the on-chain Loan object to get the exact PeriodicPayment required.
     // Off-chain calculations are unreliable — the ledger is authoritative.
