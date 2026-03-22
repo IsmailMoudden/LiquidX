@@ -9,6 +9,7 @@ import {
   Lock,
   BarChart3,
   Play,
+  Leaf,
 } from "lucide-react";
 
 const FEATURES = [
@@ -140,17 +141,17 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
-                Built for borrowers and lenders
+                No bank required.
                 <br />
-                who want clarity
+                No borders. No bias.
               </h2>
             </div>
             <div className="space-y-6 text-white/50 text-sm leading-relaxed">
               <p>
-                LiquidX lets asset owners unlock liquidity without selling. Tokenize your real-world asset, use it as collateral, and borrow against its value on fixed terms — with every step settled on XRPL.
+                LiquidX lets asset owners unlock liquidity without selling — and without asking a bank for permission. Tokenize your real-world asset on XRPL, use it as collateral, and borrow against its value at transparent rates. Your asset is your credential. Where you're from is not.
               </p>
               <p>
-                For lenders, it means access to loan pools backed by verified real-world collateral. No ambiguity about what your capital is doing: you fund a specific loan, earn a fixed return, and get repaid on schedule.
+                For lenders, it means access to the same loan pools that used to require a $1M minimum and an institutional account. Fund a specific deal backed by verified real collateral, earn 5–12% fixed, and get repaid on schedule — from anywhere, from $100.
               </p>
             </div>
           </div>
@@ -184,6 +185,108 @@ export default function LandingPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Impact Section */}
+      <section className="bg-[#060606] py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-14">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-primary uppercase tracking-widest mb-5">
+              Who This Is Really For
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+              Built for those
+              <br />
+              the system froze out.
+            </h2>
+            <p className="mt-4 text-white/40 text-sm leading-relaxed max-w-xl">
+              Traditional finance rejects based on nationality, documentation, and jurisdiction.
+              LiquidX judges on the asset — not on where you're from or who your bank is.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            {/* Borrowers */}
+            <div className="rounded-2xl border border-[#ffaa00]/20 bg-[#ffaa00]/5 p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-10 w-10 rounded-xl bg-[#ffaa00]/15 border border-[#ffaa00]/25 flex items-center justify-center">
+                  <Globe className="h-5 w-5 text-[#ffaa00]" />
+                </div>
+                <div>
+                  <p className="font-bold text-white">If your bank said no.</p>
+                  <p className="text-xs text-white/35 mt-0.5">for borrowers</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/50 leading-relaxed mb-6">
+                You own a real asset. You need financing. But the bank denied you — because of your
+                nationality, your country, excessive paperwork, or simply because you don&apos;t fit
+                their credit model. LiquidX removes the middleman entirely.
+              </p>
+              <ul className="space-y-2.5">
+                {[
+                  "Your asset is your credential — not your passport",
+                  "No SWIFT. No correspondent bank. No credit bureau.",
+                  "DID-verified identity — on merit, not origin",
+                  "Collateral on-chain, terms transparent, no gatekeepers",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/45">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#ffaa00] shrink-0 mt-1.5" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Lenders */}
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-bold text-white">If institutional yields were never for you.</p>
+                  <p className="text-xs text-white/35 mt-0.5">for lenders</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/50 leading-relaxed mb-6">
+                Private credit, real estate debt, infrastructure yield — these returns were reserved
+                for institutions and family offices with $1M+ minimums. LiquidX opens the same loan
+                pools from $100, to anyone, anywhere in the world.
+              </p>
+              <ul className="space-y-2.5">
+                {[
+                  "Minimum $100 — no accreditation required",
+                  "Same assets that institutions fund",
+                  "5–12% APY on verified real-world collateral",
+                  "Capital in escrow — auto-returned if deal falls through",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/45">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Green finance callout */}
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] px-6 py-5 flex items-start gap-4">
+            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 mt-0.5">
+              <Leaf className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white mb-1">
+                Green infrastructure. Open to everyone.
+              </p>
+              <p className="text-sm text-white/45 leading-relaxed">
+                From offshore wind to solar — LiquidX lets anyone fund real-world green
+                infrastructure from $100. The Hornsea Wind Farm pool gives retail lenders access to
+                a government-backed CfD revenue stream from the world&apos;s largest offshore wind
+                farm. Same deal. Same yield. No institution required.
+              </p>
+            </div>
           </div>
         </div>
       </section>

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Asset } from "@/lib/types";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { formatCurrency } from "@/lib/utils";
-import { createXRPLEscrow, XRPLPaymentResult } from "@/lib/xrpl";
-import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
+import { createXRPLEscrow, XRPLPaymentResult } from "@/lib/xrpl-client";
+import { useIdentityStore, selectXrplAddress } from "@/store/identity-store";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -58,9 +58,11 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const { invest, usdcBalance } = usePortfolioStore();
-  const tonAddress = useTonAddress();
-  const [tonConnectUI] = useTonConnectUI();
+  const { invest, usdcBalance, loanBrokers } = usePortfolioStore();
+  const xrplAddress = useIdentityStore(selectXrplAddress);
+
+  // Find this asset's vault to get the XRPL DestinationTag
+  const vault = loanBrokers.find((v) => v.assetId === asset.id);
 
   const amountNum = Math.max(0, parseFloat(amount) || 0);
   const tokens = Math.floor(amountNum / asset.tokenPrice);
@@ -78,7 +80,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
   };
 
   const handleInvest = async () => {
-    if (!tonAddress) { setStep("wallet-gate"); return; }
+    if (!xrplAddress) { setStep("wallet-gate"); return; }
     if (amountNum < asset.minInvestment) return;
 
     setStep("processing");
@@ -86,7 +88,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
     // 1 — Create XRPL escrow
     let xrpl: XRPLPaymentResult;
     try {
-      xrpl = await createXRPLEscrow(amountNum);
+      xrpl = await createXRPLEscrow(amountNum, undefined, vault?.destinationTag, asset.id);
       setXrplResult(xrpl);
     } catch {
       setStep("error");
@@ -99,7 +101,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
       asset.id,
       amountNum,
       { hash: xrpl.hash, status: xrpl.status, explorerUrl: xrpl.explorerUrl, ledger: xrpl.ledger, txType: "EscrowCreate" },
-      tonAddress
+      xrplAddress!
     );
 
     if (!result.success) {
@@ -128,18 +130,18 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
         {step === "input" && (
           <div className="space-y-4">
             {/* Wallet bar */}
-            {tonAddress ? (
+            {xrplAddress ? (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
                 <span className="text-emerald-400 font-medium">Wallet Connected</span>
-                <code className="ml-auto text-xs text-white/40">{tonAddress.slice(0, 8)}…</code>
+                <code className="ml-auto text-xs text-white/40">{xrplAddress.slice(0, 8)}…</code>
               </div>
             ) : (
-              <button onClick={() => tonConnectUI.openModal()}
+              <a href="/account"
                 className="flex items-center gap-2 w-full rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-2 text-sm hover:bg-orange-500/10 transition-colors">
                 <span className="h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
-                <span className="text-orange-400 font-medium">Connect wallet to invest</span>
-              </button>
+                <span className="text-orange-400 font-medium">Link XRPL wallet on Account page to invest</span>
+              </a>
             )}
 
             {/* Info row */}
@@ -195,7 +197,12 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
 
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/8 border border-blue-500/20 px-3 py-2 text-xs text-blue-400">
               <Zap className="h-3.5 w-3.5 shrink-0" />
-              Funds enter XRPL escrow and are released only after validator approval
+              <span>
+                Funds enter XRPL escrow and are released only after validator approval
+                {vault?.destinationTag !== undefined && (
+                  <span className="ml-1 opacity-70">· Vault tag <code className="font-mono">#{vault.destinationTag}</code></span>
+                )}
+              </span>
             </div>
 
             <div className="flex gap-2">
@@ -219,12 +226,12 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
               <Wallet className="h-8 w-8 text-orange-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-white mb-1">Connect your wallet first</h3>
-              <p className="text-sm text-white/40">A TON wallet is required to authorize investments on LiquidX.</p>
+              <h3 className="font-semibold text-white mb-1">Link your XRPL wallet first</h3>
+              <p className="text-sm text-white/40">Go to your Account page, paste your XRPL address, and verify your DID to invest.</p>
             </div>
             <div className="flex flex-col gap-2 w-full">
-              <Button onClick={() => tonConnectUI.openModal()} className="w-full">
-                <Wallet className="h-4 w-4" />Connect TON Wallet
+              <Button asChild className="w-full">
+                <a href="/account"><Wallet className="h-4 w-4" />Go to Account</a>
               </Button>
               <Button variant="ghost" className="w-full text-sm" onClick={() => setStep("input")}>Back</Button>
             </div>
@@ -244,7 +251,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
               <p className="font-semibold text-white">Creating XRPL Escrow</p>
               <p className="text-sm text-white/40">Locking {formatCurrency(amountNum)} USDC on XRPL Testnet…</p>
             </div>
-            <ProcessStep done icon={<Wallet className="h-4 w-4" />} label="TON Wallet Verified" />
+            <ProcessStep done icon={<Wallet className="h-4 w-4" />} label="XRPL Wallet Verified" />
             <ProcessStep active icon={<Zap className="h-4 w-4" />} label="XRPL EscrowCreate Submitting…" sub="Awaiting testnet confirmation" />
             <ProcessStep icon={<Lock className="h-4 w-4" />} label="Funds Locked in Escrow" />
           </div>
@@ -261,7 +268,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
               </p>
             </div>
             <div className="space-y-2">
-              <ProcessStep done icon={<Wallet className="h-4 w-4" />} label="TON Wallet Verified" />
+              <ProcessStep done icon={<Wallet className="h-4 w-4" />} label="XRPL Wallet Verified" />
               <ProcessStep done icon={<Zap className="h-4 w-4" />} label="XRPL EscrowCreate Confirmed" sub={`Ledger #${xrplResult.ledger?.toLocaleString()}`} />
               <ProcessStep done icon={<Lock className="h-4 w-4" />} label="Funds Locked in Escrow" />
             </div>
@@ -275,7 +282,7 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
                 </span>
               </div>
               <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-lg px-3 py-2">
-                <code className="text-xs font-mono text-primary/80 truncate flex-1">{xrplResult.hash}</code>
+                <code className="text-xs font-mono text-primary/80 truncate flex-1 min-w-0">{xrplResult.hash}</code>
                 <button onClick={() => { navigator.clipboard.writeText(xrplResult!.hash); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
                   className="shrink-0 text-white/30 hover:text-white transition-colors">
                   {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}

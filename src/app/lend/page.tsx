@@ -7,21 +7,67 @@ import { IdentityGateBanner, VerifiedIdentityPill } from "@/components/identity/
 import { FundingCard } from "@/components/assets/FundingCard";
 import { FundingStatusBadge } from "@/components/assets/EscrowStatusBadge";
 import { CategoryBadge } from "@/components/assets/CategoryBadge";
-import { AssetCategory, Vault, Asset } from "@/lib/types";
+import { AssetCategory, Vault, Asset, LendingPosition } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Search, SlidersHorizontal, Building2, Zap, Palette, Wine,
   Watch, TrendingUp, Gem, LayoutGrid, List, ChevronDown,
   Shield, ArrowRight, MapPin, Info, CheckCircle2, Clock, Lock,
+  Coins, ExternalLink, GitCommit, Activity,
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+// ─── My Positions ─────────────────────────────────────────────────────────────
+
+function MyPositionRow({ pos, assetName }: { pos: LendingPosition; assetName: string }) {
+  const amount = pos.amountDeposited ?? pos.amount ?? 0;
+  const date = pos.depositedAt ?? pos.timestamp ?? "";
+  const statusConfig: Record<string, { label: string; color: string }> = {
+    locked: { label: "In escrow", color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
+    "locked-in-escrow": { label: "In escrow", color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
+    pending: { label: "Pending", color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
+    active: { label: "Earning", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    earning: { label: "Earning", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    released: { label: "Released", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+    refunded: { label: "Refunded", color: "text-white/40 bg-white/4 border-white/10" },
+    withdrawn: { label: "Withdrawn", color: "text-white/40 bg-white/4 border-white/10" },
+  };
+  const st = statusConfig[pos.status] ?? { label: pos.status, color: "text-white/40 bg-white/4 border-white/10" };
+
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-white/8 bg-white/2 px-4 py-3">
+      <Coins className="h-4 w-4 text-primary shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white truncate">{assetName}</p>
+        {date && (
+          <p className="text-xs text-white/30 mt-0.5">
+            Deposited {new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
+        )}
+        {pos.xrplEscrowHash && (
+          <a
+            href={`https://devnet.xrpl.org/transactions/${pos.xrplEscrowHash}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+          >
+            <ExternalLink className="h-2.5 w-2.5" />{pos.xrplEscrowHash.slice(0, 16)}…
+          </a>
+        )}
+      </div>
+      <span className="font-mono font-semibold text-white">{formatCurrency(amount)}</span>
+      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0", st.color)}>
+        {st.label}
+      </span>
+    </div>
+  );
+}
+
 // ─── Vault card ───────────────────────────────────────────────────────────────
 
-function VaultCard({ vault, asset }: { vault: Vault; asset?: Asset }) {
+function VaultCard({ vault, asset, myDeposit = 0 }: { vault: Vault; asset?: Asset; myDeposit?: number }) {
   const riskLevel = vault.riskLevel ?? "medium";
   const utilization = vault.utilization ?? vault.vaultUtilization ?? 0;
   const vaultName = vault.name ?? vault.brokerName ?? vault.assetName ?? "Vault";
@@ -91,6 +137,26 @@ function VaultCard({ vault, asset }: { vault: Vault; asset?: Asset }) {
           </div>
         </div>
 
+        {/* XRPL vault proof */}
+        <div className="border-t border-white/6 px-5 py-2.5 flex items-center gap-2 bg-white/2">
+          <Zap className="h-3 w-3 text-primary/60 shrink-0" />
+          <div className="flex items-center gap-2 flex-1 min-w-0 text-[10px] text-white/30">
+            <span className="font-mono">Tag #{vault.destinationTag}</span>
+            <span>·</span>
+            {vault.xrplHash ? (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`https://devnet.xrpl.org/transactions/${vault.xrplHash}`, "_blank"); }}
+                className="flex items-center gap-0.5 text-primary/60 hover:text-primary truncate"
+              >
+                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                LoanBrokerSet {vault.xrplHash.slice(0, 10)}…
+              </button>
+            ) : (
+              <span>No broker tx yet</span>
+            )}
+          </div>
+        </div>
+
         {/* First-loss protection row */}
         <div className="border-t border-white/6 px-5 py-3 flex items-center gap-2 bg-white/2">
           <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -100,12 +166,22 @@ function VaultCard({ vault, asset }: { vault: Vault; asset?: Asset }) {
           </p>
         </div>
 
+        {/* My deposit */}
+        {myDeposit > 0 && (
+          <div className="border-t border-primary/20 px-5 py-2.5 flex items-center justify-between bg-primary/5">
+            <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+              <Coins className="h-3.5 w-3.5" />My deposit
+            </div>
+            <span className="font-mono font-bold text-white text-sm">{formatCurrency(myDeposit)}</span>
+          </div>
+        )}
+
         {/* CTA */}
         <div className="border-t border-white/6 px-5 py-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-white/30">{vault.activeLoansCount} active loan{vault.activeLoansCount !== 1 ? "s" : ""} · {vault.defaultRate}% historical default</p>
             <span className="flex items-center gap-1 text-xs text-primary font-medium group-hover:underline">
-              Fund this pool <ArrowRight className="h-3.5 w-3.5" />
+              {myDeposit > 0 ? "Add more" : "Fund this pool"} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>
@@ -183,16 +259,28 @@ export default function LendPage() {
   const { status: gateStatus } = useIdentityGate();
   const displayDid = useIdentityStore(selectDisplayDid);
 
-  const { assets, vaults, loanBrokers } = usePortfolioStore();
+  const { assets, vaults, loanBrokers, investments } = usePortfolioStore();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<AssetCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState("return-desc");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [flowOpen, setFlowOpen] = useState(false);
 
   // Use vaults if available, fall back to loanBrokers alias
   const allVaults = (vaults?.length ? vaults : loanBrokers) ?? [];
   const activeVaults = allVaults.filter((v) => v.status === "active");
+
+  // Aggregate user's active deposits per asset
+  const myDepositByAsset = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const inv of investments) {
+      if (inv.status === "refunded") continue;
+      const amount = (inv as any).amount ?? 0;
+      map[inv.assetId] = (map[inv.assetId] ?? 0) + amount;
+    }
+    return map;
+  }, [investments]);
 
   const filtered = useMemo(() =>
     assets
@@ -254,18 +342,169 @@ export default function LendPage() {
           <VerifiedIdentityPill displayDid={displayDid} />
         )}
 
-        {/* How lending works */}
-        <div className="rounded-xl border border-white/8 bg-[#0d0d0d] px-5 py-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+        {/* My lending positions */}
+        {investments.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-white/30 uppercase tracking-wide">My Positions</p>
+              <p className="text-xs text-white/30">{investments.length} position{investments.length !== 1 ? "s" : ""}</p>
+            </div>
+            <div className="space-y-2">
+              {investments.map((pos) => {
+                const asset = assets.find((a) => a.id === pos.assetId);
+                return (
+                  <MyPositionRow
+                    key={pos.id}
+                    pos={pos as LendingPosition}
+                    assetName={pos.assetName ?? asset?.name ?? pos.assetId}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* On-chain flow panel */}
+        <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] overflow-hidden">
+          <button
+            type="button"
+            className="w-full px-5 py-4 flex items-center gap-2 hover:bg-white/3 transition-colors"
+            onClick={() => setFlowOpen((v) => !v)}
+          >
+            <Activity className="h-4 w-4 text-primary shrink-0" />
+            <p className="text-sm font-semibold text-white flex-1 text-left">How it works — full on-chain flow</p>
+            <ChevronDown
+              className={cn("h-4 w-4 text-white/30 transition-transform duration-200", flowOpen && "rotate-180")}
+            />
+          </button>
+
+          {flowOpen && <div className="p-5 space-y-5 border-t border-white/6">
+            {/* Dual-layer architecture */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-[#00e5cc]/20 bg-[#00e5cc]/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <GitCommit className="h-3.5 w-3.5 text-[#00e5cc]" />
+                  <p className="text-xs font-bold text-[#00e5cc] uppercase tracking-wide">On-chain · XRPL devnet</p>
+                </div>
+                <p className="text-sm font-semibold text-white">1 XRP symbolic escrow</p>
+                <p className="text-xs text-white/45 leading-relaxed">
+                  Each deposit creates a real{" "}
+                  <code className="text-[#00e5cc] font-mono">EscrowCreate</code> transaction on XRPL with a{" "}
+                  <code className="text-[#00e5cc] font-mono">FinishAfter</code> condition and a{" "}
+                  <code className="text-[#ffaa00] font-mono">DestinationTag</code> routing to your vault.
+                  This is the cryptographic lock — auditable, immutable, tied to your wallet.
+                </p>
+                <p className="text-[10px] text-white/25 font-mono">
+                  USDC doesn&apos;t exist natively on XRPL devnet — 1 XRP = proof-of-commitment
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#0099ff]/20 bg-[#0099ff]/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-3.5 w-3.5 text-[#0099ff]" />
+                  <p className="text-xs font-bold text-[#0099ff] uppercase tracking-wide">In-app · Zustand + Supabase</p>
+                </div>
+                <p className="text-sm font-semibold text-white">$X USDC economic value</p>
+                <p className="text-xs text-white/45 leading-relaxed">
+                  The real USDC amount ($500, $1,000, …) is tracked in the app and in Supabase,
+                  with the <code className="text-[#00e5cc] font-mono">xrplEscrowHash</code> as the reference.
+                  Your P&amp;L, yield, and repayment schedule all run against this value.
+                </p>
+                <p className="text-[10px] text-white/25 font-mono">
+                  Same model as real RWA protocols on XRPL today
+                </p>
+              </div>
+            </div>
+
+            {/* TX flow */}
             <div>
-              <p className="text-sm font-medium text-white mb-1">How lending works</p>
-              <p className="text-sm text-white/50 leading-relaxed">
-                You fund a specific loan pool backed by a real-world asset. Your capital is held in XRPL escrow — it never moves until a validator approves the deal.
-                Once approved, you earn a fixed return. If the deal falls through, your full deposit is automatically returned.
+              <p className="text-[10px] text-white/30 uppercase tracking-wide mb-3">Transaction sequence on your wallet</p>
+              <div className="space-y-0">
+                {[
+                  {
+                    step: "1",
+                    tx: "EscrowCreate",
+                    actor: "You",
+                    when: "When you confirm a deposit",
+                    detail: "1 XRP locked · DestinationTag routes to vault · hash stored as xrplEscrowHash",
+                    color: "#00e5cc",
+                    status: "confirmed",
+                    extra: "Visible now in your wallet on devnet explorer",
+                  },
+                  {
+                    step: "2",
+                    tx: "EscrowFinish",
+                    actor: "Validator",
+                    when: "When validator clicks Approve & Release",
+                    detail: "OfferSequence = xrplEscrowSequence · 1 XRP released to platform wallet · holdings minted",
+                    color: "#0099ff",
+                    status: "pending",
+                    extra: "Appears after validator approval in /validator",
+                  },
+                  {
+                    step: "3",
+                    tx: "Payment (LoanPay)",
+                    actor: "Borrower",
+                    when: "Each repayment instalment",
+                    detail: "Memo: LiquidX/LoanPay · amount in XRP drops · per-instalment hash stored",
+                    color: "#a855f7",
+                    status: "pending",
+                    extra: "3 separate transactions, each with its own explorer link",
+                  },
+                ].map((s, i, arr) => (
+                  <div key={s.tx} className="relative">
+                    <div className="flex gap-3">
+                      {/* Timeline spine */}
+                      <div className="flex flex-col items-center">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border-2"
+                          style={{ borderColor: s.color, color: s.color, background: `${s.color}12` }}
+                        >
+                          {s.step}
+                        </div>
+                        {i < arr.length - 1 && (
+                          <div className="w-px flex-1 my-1" style={{ background: `${s.color}30` }} />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <code
+                            className="text-xs font-mono font-bold px-2 py-0.5 rounded"
+                            style={{ background: `${s.color}18`, color: s.color }}
+                          >
+                            {s.tx}
+                          </code>
+                          <span className="text-xs text-white/40">← {s.actor} · {s.when}</span>
+                          <span
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded-full border"
+                            style={
+                              s.status === "confirmed"
+                                ? { color: "#22c55e", borderColor: "#22c55e40", background: "#22c55e12" }
+                                : { color: "#ffffff40", borderColor: "#ffffff15", background: "#ffffff08" }
+                            }
+                          >
+                            {s.status === "confirmed" ? "● live on devnet" : "○ pending"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/40 font-mono leading-relaxed mb-1">{s.detail}</p>
+                        <p className="text-[10px] text-white/25 italic">{s.extra}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer note */}
+            <div className="rounded-lg border border-white/6 bg-white/2 px-4 py-3 flex items-start gap-2">
+              <Info className="h-3.5 w-3.5 text-white/30 mt-0.5 shrink-0" />
+              <p className="text-xs text-white/35 leading-relaxed">
+                EscrowFinish and LoanPay transactions only appear in your wallet after validator approval and borrower repayment respectively.
+                If a deal is rejected, <code className="font-mono text-white/50">EscrowCancel</code> fires instead — 100% returned automatically.
               </p>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Active vaults */}
@@ -278,7 +517,7 @@ export default function LendPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {activeVaults.map((vault) => {
                 const asset = assets.find((a) => a.id === vault.assetId);
-                return <VaultCard key={vault.id} vault={vault} asset={asset} />;
+                return <VaultCard key={vault.id} vault={vault} asset={asset} myDeposit={myDepositByAsset[vault.assetId] ?? 0} />;
               })}
             </div>
           </section>

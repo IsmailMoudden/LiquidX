@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Asset, Validator } from "@/lib/types";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-import { finishXRPLEscrow, cancelXRPLEscrow } from "@/lib/xrpl";
+import { finishXRPLEscrow, cancelXRPLEscrow } from "@/lib/xrpl-client";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, XCircle, Shield, Loader2, AlertCircle,
-  Zap, ExternalLink, Users, Lock,
+  Zap, ExternalLink, Users, Lock, FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,8 +24,9 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
   const [lastHash, setLastHash] = useState("");
   const [lastExplorerUrl, setLastExplorerUrl] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [complianceLoading, setComplianceLoading] = useState(false);
 
-  const { approveAndRelease, refundAll, investments } = usePortfolioStore();
+  const { approveAndRelease, refundAll, approveCompliance, investments } = usePortfolioStore();
 
   const lockedInvestments = investments.filter(
     (i) => i.assetId === asset.id && (i.status === "locked" || i.status === "pending")
@@ -35,14 +36,16 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
   const issuerProceeds = totalLocked - validatorFeeAmount;
 
   const canApprove =
-    asset.fundingStatus === "funded" &&
+    asset.fundingStatus !== "released" &&
+    asset.fundingStatus !== "refunded" &&
     asset.complianceApproved &&
     lockedInvestments.length > 0;
 
   const handleApprove = async () => {
     setActionState("approving");
     try {
-      const xrpl = await finishXRPLEscrow();
+      const sequence = lockedInvestments[0]?.xrplEscrowSequence;
+      const xrpl = await finishXRPLEscrow(sequence);
       setLastHash(xrpl.hash);
       setLastExplorerUrl(xrpl.explorerUrl);
       const result = approveAndRelease(asset.id, {
@@ -87,6 +90,12 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
       setActionState("error");
       setErrorMsg("XRPL EscrowCancel failed");
     }
+  };
+
+  const handleApproveCompliance = async () => {
+    setComplianceLoading(true);
+    approveCompliance(asset.id);
+    setComplianceLoading(false);
   };
 
   // ── Settled views ──────────────────────────────────────────────────────────
@@ -155,8 +164,8 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
           <p className="text-xs text-white/30 uppercase tracking-wide mb-3">Release Conditions</p>
           <div className="space-y-2">
             <ConditionRow
-              met={asset.fundingStatus === "funded" || asset.fundingStatus === "released"}
-              label="Funding target reached"
+              met={asset.amountRaised > 0}
+              label="Capital raised"
               value={`${formatCurrency(asset.amountRaised, true)} / ${formatCurrency(asset.fundingTarget, true)}`}
             />
             <ConditionRow
@@ -171,6 +180,50 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
             />
           </div>
         </div>
+
+        {/* Compliance review */}
+        {!asset.complianceApproved && (
+          <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+            <p className="text-xs text-white/30 uppercase tracking-wide">Compliance Review</p>
+            <div className="space-y-1.5 text-sm">
+              <ComplianceRow
+                ok={!!asset.proofOfOwnership?.documentType}
+                label="Ownership document"
+                value={asset.proofOfOwnership?.documentType ?? "Missing"}
+              />
+              <ComplianceRow
+                ok={!!asset.proofOfOwnership?.issuedBy}
+                label="Issuing authority"
+                value={asset.proofOfOwnership?.issuedBy ?? "Missing"}
+              />
+              <ComplianceRow
+                ok={!!asset.proofOfOwnership?.hash}
+                label="Document hash"
+                value={asset.proofOfOwnership?.hash ? asset.proofOfOwnership.hash.slice(0, 16) + "…" : "Missing"}
+              />
+              <ComplianceRow
+                ok={asset.proofOfOwnership?.didVerified ?? false}
+                label="Borrower DID verified"
+                value={asset.proofOfOwnership?.borrowerDid ? asset.proofOfOwnership.borrowerDid.slice(0, 24) + "…" : "Missing"}
+              />
+            </div>
+            <Button
+              size="sm"
+              className="w-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/25"
+              disabled={complianceLoading || !asset.proofOfOwnership?.didVerified}
+              onClick={handleApproveCompliance}
+            >
+              {complianceLoading ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" />Validating…</>
+              ) : (
+                <><FileCheck className="h-3.5 w-3.5" />Approve Compliance</>
+              )}
+            </Button>
+            {!asset.proofOfOwnership?.didVerified && (
+              <p className="text-xs text-white/30 text-center">DID must be verified before approving compliance</p>
+            )}
+          </div>
+        )}
 
         {/* Fee breakdown */}
         {lockedInvestments.length > 0 && (
@@ -234,12 +287,24 @@ export function ValidatorPanel({ asset, validator }: ValidatorPanelProps) {
           <p className="text-xs text-white/30 text-center">
             {!asset.complianceApproved
               ? "⏳ Waiting for compliance approval"
-              : asset.fundingStatus !== "funded"
-              ? "⏳ Funding target not yet reached"
               : "⏳ Waiting for escrow positions"}
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function ComplianceRow({ ok, label, value }: { ok: boolean; label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="flex items-center gap-1.5 text-white/50">
+        {ok
+          ? <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+          : <AlertCircle className="h-3 w-3 text-yellow-400" />}
+        {label}
+      </span>
+      <span className={cn("font-mono truncate max-w-[160px]", ok ? "text-white/60" : "text-yellow-400/70")}>{value}</span>
     </div>
   );
 }

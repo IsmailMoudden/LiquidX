@@ -9,6 +9,8 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { useIdentityStore } from "@/store/identity-store";
+import { usePortfolioStore } from "@/store/portfolio-store";
 
 interface AuthContextValue {
   user: User | null;
@@ -31,18 +33,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { loadFromSupabase: loadIdentity, clearIdentity } = useIdentityStore.getState();
+    const { loadFromSupabase: loadPortfolio } = usePortfolioStore.getState();
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!error) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          loadIdentity(session.user.id);
+          loadPortfolio(session.user.id);
+        }
+      }
       setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (event === "SIGNED_IN" && session?.user) {
+        loadIdentity(session.user.id);
+        loadPortfolio(session.user.id);
+      }
+      if (event === "SIGNED_OUT") {
+        clearIdentity();
+      }
     });
 
     return () => subscription.unsubscribe();

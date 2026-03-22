@@ -28,7 +28,7 @@ import {
   type MPTIssuanceParams,
   type XRPLPaymentResult,
   type CollateralEscrowResult,
-} from "./xrpl";
+} from "./xrpl-client";
 import {
   attachDIDToUser,
   requireVerifiedDID,
@@ -100,9 +100,9 @@ export async function depositToVault(params: {
  * Wraps: EscrowFinish
  * Called by: validator on /validator page
  */
-export async function releaseVaultPosition(): Promise<ServiceResult<{ xrplHash: string }>> {
+export async function releaseVaultPosition(escrowSequence?: number): Promise<ServiceResult<{ xrplHash: string }>> {
   try {
-    const result = await finishXRPLEscrow();
+    const result = await finishXRPLEscrow(escrowSequence);
     return { ok: true, data: { xrplHash: result.hash }, xrpl: result };
   } catch (err) {
     return { ok: false, error: "Failed to release position." };

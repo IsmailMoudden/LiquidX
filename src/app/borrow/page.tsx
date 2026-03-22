@@ -1,20 +1,299 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { usePortfolioStore } from "@/store/portfolio-store";
-import { useIdentityGate, useIdentityStore, selectDisplayDid } from "@/store/identity-store";
+import { useIdentityGate, useIdentityStore, selectDisplayDid, selectXrplAddress, selectDidVerified } from "@/store/identity-store";
 import { IdentityGateBanner, VerifiedIdentityPill } from "@/components/identity/IdentityGateBanner";
-import { formatCurrency, formatPercent } from "@/lib/utils";
-import { repayInstalment } from "@/lib/lending-service";
+import { formatCurrency } from "@/lib/utils";
+import { repayInstalment, requestLoan } from "@/lib/lending-service";
+import { calculateLoanPricing } from "@/lib/loan-pricing";
 import { BorrowingPosition, LoanRepayment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Banknote, CheckCircle2, AlertCircle, ExternalLink,
   ChevronDown, ChevronUp, Loader2, Clock, AlertTriangle,
-  ArrowRight, CircleDollarSign, Shield, Info,
+  ArrowRight, CircleDollarSign, Info, Plus, Zap, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+
+// ─── Request Loan Dialog ──────────────────────────────────────────────────────
+
+const TERM_OPTIONS = [
+  { days: 30, label: "30 days" },
+  { days: 60, label: "60 days" },
+  { days: 90, label: "90 days" },
+];
+
+function RequestLoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { assets, loanBrokers, originateLoan, usdcBalance } = usePortfolioStore();
+  const xrplAddress = useIdentityStore(selectXrplAddress);
+  const isDidVerified = useIdentityStore(selectDidVerified);
+
+  const eligibleAssets = useMemo(
+    () => assets.filter((a) => loanBrokers.some((b) => b.assetId === a.id && b.status === "active")),
+    [assets, loanBrokers]
+  );
+
+  const [assetId, setAssetId] = useState(eligibleAssets[0]?.id ?? "");
+  const [principal, setPrincipal] = useState("10000");
+  const [termDays, setTermDays] = useState(60);
+  const [step, setStep] = useState<"form" | "processing" | "success" | "error">("form");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [txHash, setTxHash] = useState("");
+
+  const selectedAsset = assets.find((a) => a.id === assetId);
+  const principalNum = Math.max(0, parseFloat(principal) || 0);
+  const pricing = useMemo(
+    () => selectedAsset ? calculateLoanPricing(selectedAsset.category, termDays, 10) : null,
+    [selectedAsset, termDays]
+  );
+
+  const handleClose = () => {
+    if (step === "processing") return;
+    setStep("form");
+    setErrorMsg("");
+    setTxHash("");
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    if (!xrplAddress || !selectedAsset || principalNum <= 0) return;
+    setStep("processing");
+    setErrorMsg("");
+
+    const svc = await requestLoan({
+      borrowerAddress: xrplAddress,
+      principalUsdc: principalNum,
+      interestRatePercent: pricing?.interestRate ?? 8,
+      termDays,
+      isDidVerified: isDidVerified ?? false,
+    });
+
+    if (!svc.ok) {
+      setErrorMsg(svc.error ?? "Loan request failed");
+      setStep("error");
+      return;
+    }
+
+    const result = originateLoan(
+      assetId,
+      {
+        borrowerAddress: xrplAddress,
+        principalUsdc: principalNum,
+        interestRatePercent: pricing?.interestRate ?? 8,
+        termDays,
+      },
+      {
+        hash: svc.xrpl!.hash,
+        status: svc.xrpl!.status,
+        explorerUrl: svc.xrpl!.explorerUrl,
+        ledger: svc.xrpl!.ledger,
+        txType: "LoanSet",
+        loanId: svc.data!.loanId,
+      }
+    );
+
+    if (!result.success) {
+      setErrorMsg(result.error ?? "Failed to save loan");
+      setStep("error");
+      return;
+    }
+
+    setTxHash(svc.data!.xrplHash);
+    setStep("success");
+  };
+
+  const riskColor = { Low: "text-emerald-400", Medium: "text-yellow-400", High: "text-red-400" };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Banknote className="h-5 w-5 text-primary" />
+            Request a Loan
+          </DialogTitle>
+          <DialogDescription>
+            Borrow USDC against a tokenized asset. Fixed rate, on-chain settlement.
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "form" && (
+          <div className="space-y-4">
+            {eligibleAssets.length === 0 ? (
+              <div className="rounded-xl border border-white/8 bg-white/3 p-4 text-center text-sm text-white/50">
+                No eligible assets. <Link href="/tokenize" className="text-primary hover:underline">Tokenize an asset first.</Link>
+              </div>
+            ) : (
+              <>
+                {/* Asset selector */}
+                <div>
+                  <label className="text-sm font-medium text-white mb-1.5 block">Collateral Asset</label>
+                  <select
+                    value={assetId}
+                    onChange={(e) => setAssetId(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none cursor-pointer"
+                  >
+                    {eligibleAssets.map((a) => (
+                      <option key={a.id} value={a.id} className="bg-[#0d0d0d]">{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Principal */}
+                <div>
+                  <label className="text-sm font-medium text-white mb-1.5 block">Loan Amount (USDC)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">$</span>
+                    <Input
+                      type="number"
+                      placeholder="10000"
+                      className="pl-7 font-mono"
+                      value={principal}
+                      onChange={(e) => setPrincipal(e.target.value)}
+                      min={100}
+                    />
+                  </div>
+                </div>
+
+                {/* Term */}
+                <div>
+                  <label className="text-sm font-medium text-white mb-1.5 block">Loan Term</label>
+                  <div className="flex gap-2">
+                    {TERM_OPTIONS.map((t) => (
+                      <button
+                        key={t.days}
+                        onClick={() => setTermDays(t.days)}
+                        className={cn(
+                          "flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-all",
+                          termDays === t.days
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-white/10 bg-white/4 text-white/50 hover:text-white"
+                        )}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pricing summary */}
+                {pricing && (
+                  <div className="rounded-xl border border-white/8 bg-white/3 p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Interest rate</span>
+                      <span className="font-mono font-semibold text-primary">{pricing.interestRate}% p.a.</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Risk level</span>
+                      <span className={cn("font-semibold text-xs", riskColor[pricing.riskLevel])}>{pricing.riskLevel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Loan amount</span>
+                      <span className="font-mono text-white">{formatCurrency(principalNum)}</span>
+                    </div>
+                    <div className="border-t border-white/8 pt-2 flex justify-between">
+                      <span className="text-white/40">Est. total interest</span>
+                      <span className="font-mono text-yellow-400">
+                        {formatCurrency(principalNum * (pricing.interestRate / 100) * (termDays / 365))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 rounded-xl bg-blue-500/8 border border-blue-500/20 px-3 py-2 text-xs text-blue-400">
+                  <Zap className="h-3.5 w-3.5 shrink-0" />
+                  Loan terms are recorded on XRPL. Approval takes 24–48 hours.
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={handleClose}>Cancel</Button>
+                  <Button
+                    className="flex-1"
+                    disabled={!xrplAddress || principalNum <= 0 || !assetId}
+                    onClick={handleSubmit}
+                  >
+                    Submit Request <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === "processing" && (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <div className="relative">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                <Banknote className="h-6 w-6 text-primary" />
+              </div>
+              <Loader2 className="absolute -inset-1 h-16 w-16 animate-spin text-primary/20" />
+            </div>
+            <div>
+              <p className="font-semibold text-white">Submitting to XRPL…</p>
+              <p className="text-sm text-white/40 mt-1">Verifying DID and recording LoanSet transaction</p>
+            </div>
+          </div>
+        )}
+
+        {step === "success" && (
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+              <p className="text-lg font-bold text-white">Loan Request Submitted!</p>
+              <p className="text-sm text-white/40">Your request is pending validator approval (24–48 hours).</p>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/3 px-4 py-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-white/40">Amount</span>
+                <span className="font-mono text-white">{formatCurrency(principalNum)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Rate</span>
+                <span className="font-mono text-primary">{pricing?.interestRate}% p.a.</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Term</span>
+                <span className="font-mono text-white">{termDays} days</span>
+              </div>
+            </div>
+            {txHash && (
+              <a
+                href={`https://devnet.xrpl.org/transactions/${txHash}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />View LoanSet on XRPL
+              </a>
+            )}
+            <Button className="w-full" onClick={handleClose}>
+              <Check className="h-4 w-4" /> Done
+            </Button>
+          </div>
+        )}
+
+        {step === "error" && (
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <AlertCircle className="h-12 w-12 text-red-400" />
+            <div>
+              <p className="font-semibold text-white">Request Failed</p>
+              <p className="text-sm text-white/40 mt-1">{errorMsg}</p>
+            </div>
+            <div className="flex gap-2 w-full">
+              <Button variant="outline" className="flex-1" onClick={() => setStep("form")}>Try Again</Button>
+              <Button variant="ghost" className="flex-1" onClick={handleClose}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ─── Repayment row ────────────────────────────────────────────────────────────
 
@@ -227,6 +506,7 @@ function LoanCard({ loan }: { loan: BorrowingPosition }) {
 export default function BorrowPage() {
   const { status: gateStatus } = useIdentityGate();
   const displayDid = useIdentityStore(selectDisplayDid);
+  const [loanDialogOpen, setLoanDialogOpen] = useState(false);
 
   const { borrowingPositions, loans, assets } = usePortfolioStore();
 
@@ -314,14 +594,22 @@ export default function BorrowPage() {
           <div className="flex-1">
             <p className="font-semibold text-white">Need to borrow against an asset?</p>
             <p className="text-sm text-white/50 mt-0.5">
-              Tokenize your asset first, then submit a loan request. Typical approval takes 24–48 hours.
+              Select a tokenized asset as collateral and submit a loan request. Approval takes 24–48 hours.
             </p>
           </div>
-          <Link href="/tokenize">
-            <Button className="shrink-0">
-              Tokenize an asset <ArrowRight className="h-4 w-4" />
+          <div className="flex gap-2 shrink-0">
+            <Button
+              disabled={gateStatus !== "ready"}
+              onClick={() => setLoanDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" /> Request a Loan
             </Button>
-          </Link>
+            <Link href="/tokenize">
+              <Button variant="outline">
+                Tokenize asset <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Pending loans */}
@@ -389,6 +677,8 @@ export default function BorrowPage() {
         </div>
 
       </div>
+
+      <RequestLoanDialog open={loanDialogOpen} onClose={() => setLoanDialogOpen(false)} />
     </div>
   );
 }

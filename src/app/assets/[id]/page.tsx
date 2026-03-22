@@ -23,6 +23,10 @@ import {
   Shield,
   Coins,
   ExternalLink,
+  FileText,
+  Link2,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { use } from "react";
 
@@ -43,6 +47,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const myInvestments = investments.filter((i) => i.assetId === id);
   const myLocked = myInvestments.filter((i) => i.status === "locked" || i.status === "pending" || i.status === "locked-in-escrow");
   const myReleased = myInvestments.filter((i) => i.status === "released" || i.status === "earning");
+
+  const myTotalAmount = myInvestments.reduce((s, i) => s + ((i as any).amount ?? 0), 0);
+  const myActiveInvestments = myInvestments.filter((i) => i.status !== "refunded");
 
   const pct = Math.min(100, (asset.amountRaised / asset.fundingTarget) * 100);
   const days = daysLeft(asset.fundingDeadline);
@@ -83,7 +90,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
-              <p className="text-xs text-white/40 mb-1">Proj. Yield</p>
+              <p className="text-xs text-white/40 mb-1">Interest Rate</p>
               <p className="text-lg font-bold text-primary flex items-center gap-1">
                 <TrendingUp className="h-4 w-4" />{formatPercent(asset.projectedYield)}
               </p>
@@ -93,7 +100,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <p className="text-lg font-bold text-white font-mono">${asset.tokenPrice}</p>
             </div>
             <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">
-              <p className="text-xs text-white/40 mb-1">Investors</p>
+              <p className="text-xs text-white/40 mb-1">Lenders</p>
               <p className="text-lg font-bold text-white flex items-center gap-1">
                 <Users className="h-4 w-4 text-white/30" />{asset.investorCount}
               </p>
@@ -140,6 +147,92 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             ))}
           </div>
 
+          {/* Proof of Ownership */}
+          {asset.proofOfOwnership && (
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-6">
+              <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-white/40" />
+                Proof of Ownership
+              </h2>
+              <div className="space-y-3">
+                {/* DID verification badge */}
+                <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                  asset.proofOfOwnership.didVerified
+                    ? "border-emerald-500/20 bg-emerald-500/5"
+                    : "border-yellow-500/20 bg-yellow-500/5"
+                }`}>
+                  <div className="flex items-center gap-2.5">
+                    {asset.proofOfOwnership.didVerified
+                      ? <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                      : <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+                    }
+                    <div>
+                      <p className={`text-sm font-medium ${asset.proofOfOwnership.didVerified ? "text-emerald-400" : "text-yellow-400"}`}>
+                        {asset.proofOfOwnership.didVerified ? "DID Verified" : "DID Pending Verification"}
+                      </p>
+                      <p className="text-xs text-white/40 font-mono mt-0.5 break-all">
+                        {asset.proofOfOwnership.borrowerDid}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/trust"
+                    className="shrink-0 flex items-center gap-1 text-xs text-primary hover:underline ml-4"
+                  >
+                    Trust page <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+
+                {/* Document details */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-white/6 bg-white/3 px-4 py-3">
+                    <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">Document Type</p>
+                    <p className="text-sm text-white font-medium">{asset.proofOfOwnership.documentType}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/6 bg-white/3 px-4 py-3">
+                    <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">Issued By</p>
+                    <p className="text-sm text-white font-medium">{asset.proofOfOwnership.issuedBy}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/6 bg-white/3 px-4 py-3">
+                    <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">Issue Date</p>
+                    <p className="text-sm text-white font-mono">
+                      {new Date(asset.proofOfOwnership.issuedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/6 bg-white/3 px-4 py-3">
+                    <p className="text-[10px] text-white/30 uppercase tracking-wide mb-0.5">Document Hash</p>
+                    <p className="text-xs text-white/60 font-mono truncate">{asset.proofOfOwnership.hash.slice(0, 20)}…</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sources */}
+          {asset.sources && asset.sources.length > 0 && (
+            <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-6">
+              <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-white/40" />
+                Sources & References
+              </h2>
+              <ul className="space-y-2">
+                {asset.sources.map((url) => (
+                  <li key={url}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* My escrow positions */}
           {myInvestments.length > 0 && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
@@ -154,7 +247,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       <p className="text-xs text-white/40">{(inv as any).tokens ?? inv.shares ?? 0} tokens · {new Date((inv as any).timestamp ?? inv.depositedAt ?? "").toLocaleDateString()}</p>
                       {inv.xrplEscrowHash && (
                         <a
-                          href={`https://testnet.xrpl.org/transactions/${inv.xrplEscrowHash}`}
+                          href={`https://devnet.xrpl.org/transactions/${inv.xrplEscrowHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
@@ -174,6 +267,27 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Right — funding + validator panel */}
         <div className="space-y-5">
+          {/* My Position — only shown when user has invested */}
+          {myActiveInvestments.length > 0 && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+              <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Coins className="h-4 w-4 text-primary" />My Position
+              </h2>
+              <div className="mb-3">
+                <p className="text-2xl font-bold text-white font-mono">{formatCurrency(myTotalAmount)}</p>
+                <p className="text-xs text-white/40 mt-0.5">{myActiveInvestments.length} position{myActiveInvestments.length > 1 ? "s" : ""}</p>
+              </div>
+              <div className="space-y-2">
+                {myActiveInvestments.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between text-sm">
+                    <span className="text-white/50 font-mono">{formatCurrency((inv as any).amount ?? 0)}</span>
+                    <InvestmentStatusBadge status={inv.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Funding progress */}
           <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
             <div className="flex items-center justify-between mb-4">
@@ -224,7 +338,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             {asset.fundingStatus === "open" && (
               <Button className="w-full mt-5" onClick={() => setInvestOpen(true)}>
                 <Lock className="h-4 w-4" />
-                Invest — Lock in Escrow
+                {myActiveInvestments.length > 0 ? "Add More" : "Invest — Lock in Escrow"}
               </Button>
             )}
             {asset.fundingStatus === "funded" && (

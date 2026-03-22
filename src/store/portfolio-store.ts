@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  Asset, Holding, Investment, Loan, LoanBrokerConfig, MPTIssuance,
+  Asset, Holding, Investment, Loan, MPTIssuance,
   PortfolioState, Transaction, LoanRepayment,
 } from "@/lib/types";
 import { MOCK_ASSETS } from "@/data/assets";
 import { VALIDATORS } from "@/data/validators";
-import { LOAN_BROKERS } from "@/data/loanBrokers";
+import { LOAN_BROKERS, VAULT_TAGS } from "@/data/loanBrokers";
 import { generateId } from "@/lib/utils";
+import { saveLendingPosition, updateLendingPosition, saveLoan, updateLoan, saveTransaction, loadUserPortfolio, loadAssets, seedAssets } from "@/lib/supabase-sync";
 
 // ─── XRPL settlement shape ────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ export interface XRPLSettlement {
   status: "confirmed" | "simulated";
   explorerUrl: string;
   ledger?: number;
+  escrowSequence?: number;
   txType:
     | "EscrowCreate" | "EscrowFinish" | "EscrowCancel" | "Payment"
     | "MPTokenIssuanceCreate" | "MPTokenAuthorize"
@@ -48,6 +50,10 @@ interface PortfolioActions {
   sellAsset: (assetId: string, tokenAmount: number, tonAddress?: string) => { success: boolean; error?: string };
   tokenizeAsset: (asset: Omit<Asset, "id" | "fundingStatus" | "amountRaised" | "investorCount" | "complianceApproved">) => Asset;
   resetPortfolio: () => void;
+  // Compliance
+  approveCompliance: (assetId: string) => { success: boolean; error?: string };
+  // Supabase
+  loadFromSupabase: (userId: string) => Promise<void>;
 }
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
@@ -257,6 +263,7 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
           tokenPrice: asset.tokenPrice,
           status: "locked",
           xrplEscrowHash: xrpl.hash,
+          xrplEscrowSequence: xrpl.escrowSequence,
           timestamp: new Date().toISOString(),
         };
 
@@ -287,6 +294,18 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         };
 
         set({ usdcBalance: state.usdcBalance - amount, investments: [investment, ...state.investments], transactions: [tx, ...state.transactions], assets: updatedAssets });
+
+        // Fire-and-forget Supabase sync
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            const vaultTag = VAULT_TAGS[assetId];
+            saveLendingPosition(uid, investment, vaultTag).catch(console.warn);
+            saveTransaction(uid, tx).catch(console.warn);
+          })
+        );
+
         return { success: true, investmentId };
       },
 
@@ -296,18 +315,19 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         const state = get();
         const asset = state.assets.find((a) => a.id === assetId);
         if (!asset) return { success: false, error: "Asset not found" };
-        if (asset.fundingStatus !== "funded") return { success: false, error: "Funding target not yet reached" };
+        if (asset.fundingStatus === "released" || asset.fundingStatus === "refunded") return { success: false, error: "Already settled" };
 
         const validator = VALIDATORS.find((v) => v.id === asset.validatorId);
         const feeRate = validator?.feePercentage ?? 1;
         const releasedAt = new Date().toISOString();
-        const newHoldings: Holding[] = [];
         const newTransactions: Transaction[] = [];
 
+        // Lending flow: lenders put up capital, they don't receive tokens.
+        // On release, funds go to the asset owner. Lender positions are marked
+        // "released" — they will be repaid (principal + interest) when the loan matures.
         const updatedInvestments = state.investments.map((inv) => {
           if (inv.assetId !== assetId || inv.status !== "locked") return inv;
           const fee = Math.round(inv.amount! * (feeRate / 100) * 100) / 100;
-          newHoldings.push({ assetId, tokens: inv.tokens!, avgBuyPrice: inv.tokenPrice!, purchasedAt: releasedAt, investmentId: inv.id });
           newTransactions.push({
             id: `tx-${generateId()}`, type: "release", assetId, assetName: asset.name,
             tokens: inv.tokens!, price: inv.tokenPrice!, total: inv.amount!, timestamp: releasedAt,
@@ -317,21 +337,53 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
           return { ...inv, status: "released" as const, xrplReleaseHash: xrpl.hash, releasedAt, validatorFee: fee };
         });
 
-        const mergedHoldings = [...state.holdings];
-        for (const nh of newHoldings) {
-          const i = mergedHoldings.findIndex((h) => h.assetId === nh.assetId);
-          if (i >= 0) {
-            const total = mergedHoldings[i].tokens + nh.tokens;
-            mergedHoldings[i] = { ...mergedHoldings[i], tokens: total, avgBuyPrice: (mergedHoldings[i].tokens * mergedHoldings[i].avgBuyPrice + nh.tokens * nh.avgBuyPrice) / total };
-          } else { mergedHoldings.push(nh); }
-        }
-
         set({
           investments: updatedInvestments,
-          holdings: mergedHoldings,
           transactions: [...newTransactions, ...state.transactions],
           assets: state.assets.map((a) => a.id === assetId ? { ...a, fundingStatus: "released" as const, complianceApproved: true } : a),
         });
+
+        // Fire-and-forget Supabase sync
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            const releasedInvs = updatedInvestments.filter((i) => i.assetId === assetId && i.status === "released");
+            releasedInvs.forEach((inv) =>
+              updateLendingPosition(uid, inv.id, { status: "released", released_at: releasedAt }).catch(console.warn)
+            );
+            newTransactions.forEach((tx) => saveTransaction(uid, tx).catch(console.warn));
+          })
+        );
+
+        return { success: true };
+      },
+
+      // ── APPROVE COMPLIANCE ─────────────────────────────────────────────────
+
+      approveCompliance: (assetId) => {
+        const state = get();
+        const asset = state.assets.find((a) => a.id === assetId);
+        if (!asset) return { success: false, error: "Asset not found" };
+        if (asset.complianceApproved) return { success: true };
+
+        set({
+          assets: state.assets.map((a) =>
+            a.id === assetId
+              ? { ...a, complianceApproved: true, verificationStatus: "verified" as const }
+              : a
+          ),
+        });
+
+        // Fire-and-forget Supabase sync
+        import("@/lib/supabase/client").then(({ createClient }) => {
+          createClient()
+            .from("assets")
+            .update({ compliance_approved: true, verification_status: "verified" })
+            .eq("id", assetId)
+            .then(undefined, console.warn);
+        });
+
         return { success: true };
       },
 
@@ -362,8 +414,28 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
           usdcBalance: state.usdcBalance + totalRefunded,
           investments: updatedInvestments,
           transactions: [...newTransactions, ...state.transactions],
-          assets: state.assets.map((a) => a.id === assetId ? { ...a, fundingStatus: "refunded" as const } : a),
+          // Reset asset back to open so new investments are accepted.
+          // Individual positions retain status "refunded" in history.
+          assets: state.assets.map((a) =>
+            a.id === assetId
+              ? { ...a, fundingStatus: "open" as const, amountRaised: 0, investorCount: 0 }
+              : a
+          ),
         });
+
+        // Fire-and-forget Supabase sync
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            const refundedInvs = updatedInvestments.filter((i) => i.assetId === assetId && i.status === "refunded");
+            refundedInvs.forEach((inv) =>
+              updateLendingPosition(uid, inv.id, { status: "refunded", released_at: refundedAt }).catch(console.warn)
+            );
+            newTransactions.forEach((tx) => saveTransaction(uid, tx).catch(console.warn));
+          })
+        );
+
         return { success: true };
       },
 
@@ -473,6 +545,16 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
         );
 
         set({ loans: [loan, ...state.loans], loanBrokers: updatedBrokers, transactions: [tx, ...state.transactions] });
+
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            saveLoan(uid, loan).catch(console.warn);
+            saveTransaction(uid, tx).catch(console.warn);
+          })
+        );
+
         return { success: true, loanId };
       },
 
@@ -510,14 +592,29 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
           brokerId: loan.brokerId, loanId,
         };
 
+        const updatedLoan = updatedLoans.find((l) => l.id === loanId)!;
         if (allPaid) {
           const updatedBrokers = state.loanBrokers.map((b) =>
             b.id === loan.brokerId ? { ...b, activeLoansCount: Math.max(0, b.activeLoansCount - 1) } : b
           );
-          set({ loans: updatedLoans, loanBrokers: updatedBrokers, transactions: [tx, ...state.transactions] });
+          set({ loans: updatedLoans, loanBrokers: updatedBrokers, transactions: [tx, ...state.transactions], usdcBalance: state.usdcBalance - paymentAmount });
         } else {
-          set({ loans: updatedLoans, transactions: [tx, ...state.transactions] });
+          set({ loans: updatedLoans, transactions: [tx, ...state.transactions], usdcBalance: state.usdcBalance - paymentAmount });
         }
+
+        import("@/lib/supabase/client").then(({ createClient }) =>
+          createClient().auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            const uid = data.user.id;
+            updateLoan(uid, loanId, {
+              status: updatedLoan.status,
+              total_repaid: updatedLoan.totalRepaid,
+              repayment_schedule: updatedLoan.repaymentSchedule,
+              updated_at: paidAt,
+            }).catch(console.warn);
+            saveTransaction(uid, tx).catch(console.warn);
+          })
+        );
 
         return { success: true };
       },
@@ -642,6 +739,42 @@ export const usePortfolioStore = create<PortfolioState & PortfolioActions>()(
       },
 
       resetPortfolio: () => set(INITIAL_STATE),
+
+      // ── LOAD FROM SUPABASE ─────────────────────────────────────────────────
+      // Called by AuthProvider on login. Merges DB data with local seed state.
+      // Only adds records not already in the store (avoids overwriting local activity).
+
+      loadFromSupabase: async (userId: string) => {
+        try {
+          // ── Assets: load from DB, seed on first run ─────────────────────────
+          const dbAssets = await loadAssets();
+          if (dbAssets.length > 0) {
+            set({ assets: dbAssets });
+          } else {
+            // First ever login — seed all platform assets to DB
+            await seedAssets(MOCK_ASSETS);
+            set({ assets: MOCK_ASSETS });
+          }
+
+          // ── User portfolio ──────────────────────────────────────────────────
+          const { investments, loans, transactions } = await loadUserPortfolio(userId);
+          if (investments.length === 0 && loans.length === 0 && transactions.length === 0) return;
+
+          set((state) => {
+            const existingInvIds = new Set(state.investments.map((i) => i.id));
+            const existingLoanIds = new Set(state.loans.map((l) => l.id));
+            const existingTxIds = new Set(state.transactions.map((t) => t.id));
+
+            return {
+              investments: [...investments.filter((i) => !existingInvIds.has(i.id)), ...state.investments],
+              loans: [...loans.filter((l) => !existingLoanIds.has(l.id)), ...state.loans],
+              transactions: [...transactions.filter((t) => !existingTxIds.has(t.id)), ...state.transactions],
+            };
+          });
+        } catch (err) {
+          console.warn("[Portfolio] loadFromSupabase error:", err);
+        }
+      },
     }),
     { name: "liquidx-portfolio-v4" }
   )

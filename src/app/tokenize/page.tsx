@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { AssetCategory } from "@/lib/types";
+import { createMPTIssuance, signCollateralContract } from "@/lib/xrpl-client";
+import { saveAsset } from "@/lib/supabase-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -84,6 +86,13 @@ interface FormState {
   tokenSupply: string;
   projectedYield: string;
   liquidityScore: string;
+  // New fields
+  imageUrl: string;
+  sources: string;         // comma-separated reference URLs
+  minInvestment: string;
+  docType: string;         // e.g. "Title Deed"
+  docIssuedBy: string;     // e.g. "Dubai Land Department"
+  docDate: string;         // YYYY-MM-DD
 }
 
 const INITIAL_FORM: FormState = {
@@ -95,6 +104,12 @@ const INITIAL_FORM: FormState = {
   tokenSupply: "",
   projectedYield: "",
   liquidityScore: "7",
+  imageUrl: "",
+  sources: "",
+  minInvestment: "100",
+  docType: "",
+  docIssuedBy: "",
+  docDate: "",
 };
 
 // ─── Eligibility Gate Component ───────────────────────────────────────────────
@@ -367,27 +382,102 @@ function AssetStep({
         </div>
       </div>
 
+      {/* Asset media */}
+      <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-4">
+        <h3 className="font-semibold text-white text-sm">Media & References</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">
+              Image URL
+            </label>
+            <Input
+              placeholder="https://… (leave blank to use category default)"
+              value={form.imageUrl}
+              onChange={(e) => update("imageUrl", e.target.value)}
+              type="url"
+            />
+            {form.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={form.imageUrl}
+                alt="preview"
+                className="mt-2 h-24 w-full object-cover rounded-lg opacity-70"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">
+              Reference URLs <span className="text-white/25">(comma-separated)</span>
+            </label>
+            <Input
+              placeholder="https://land-registry.gov/…, https://…"
+              value={form.sources}
+              onChange={(e) => update("sources", e.target.value)}
+            />
+            <p className="text-[10px] text-white/25 mt-1">
+              Public links to registries, valuations, or legal documents that verify this asset.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">
+              Minimum Investment (USDC)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">$</span>
+              <Input
+                type="number"
+                placeholder="100"
+                className="pl-7 font-mono"
+                value={form.minInvestment}
+                onChange={(e) => update("minInvestment", e.target.value)}
+                min="1"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Proof of ownership */}
-      <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-3">
+      <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-5 space-y-4">
         <h3 className="font-semibold text-white text-sm flex items-center gap-2">
           <Upload className="h-4 w-4 text-white/40" />
-          Proof of Ownership
+          Proof of Ownership Document
         </h3>
         <p className="text-xs text-white/40">
-          Upload a legal document confirming your ownership (title deed, notarized
-          contract, or official registry extract). This document is hashed and
-          anchored to your DID — it is not stored by LiquidX.
+          Provide details of the legal document that confirms your ownership.
+          The document hash will be anchored to your DID — the file itself is never stored by LiquidX.
         </p>
-        <div className="rounded-lg border border-dashed border-white/15 bg-white/2 px-4 py-6 text-center cursor-pointer hover:border-primary/30 hover:bg-primary/3 transition-all group">
-          <Upload className="h-6 w-6 text-white/20 group-hover:text-primary/50 mx-auto mb-2 transition-colors" />
-          <p className="text-xs text-white/30 group-hover:text-white/50">
-            Click to upload or drag and drop
-          </p>
-          <p className="text-[10px] text-white/20 mt-1">PDF, JPG, PNG — max 10 MB</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">Document Type</label>
+            <Input
+              placeholder="e.g. Title Deed"
+              value={form.docType}
+              onChange={(e) => update("docType", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">Issued By</label>
+            <Input
+              placeholder="e.g. Dubai Land Department"
+              value={form.docIssuedBy}
+              onChange={(e) => update("docIssuedBy", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-white/50 mb-1.5 block">Issue Date</label>
+            <Input
+              type="date"
+              value={form.docDate}
+              onChange={(e) => update("docDate", e.target.value)}
+              className="font-mono"
+            />
+          </div>
         </div>
         <p className="text-[10px] text-white/25 flex items-center gap-1">
           <ShieldCheck className="h-3 w-3" />
-          Document hash will be stored on XRPL linked to your DID. The file itself is encrypted and never exposed.
+          Document metadata is hashed and linked to your XRP DID on-chain.
         </p>
       </div>
 
@@ -487,6 +577,7 @@ function AssetStep({
 function ConfirmStep({
   form,
   did,
+  xrplAddress,
   onBack,
   onSubmit,
   isSubmitting,
@@ -494,9 +585,12 @@ function ConfirmStep({
   isCheckingEligibility,
   onLockCollateral,
   isLockingCollateral,
+  onContractSigned,
+  contractTxHash,
 }: {
   form: FormState;
   did: string;
+  xrplAddress: string;
   onBack: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
@@ -504,12 +598,54 @@ function ConfirmStep({
   isCheckingEligibility: boolean;
   onLockCollateral: () => void;
   isLockingCollateral: boolean;
+  onContractSigned: (contractHash: string, txHash: string) => void;
+  contractTxHash: string;
 }) {
-  const [accepted, setAccepted] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [signError, setSignError] = useState("");
   const tokenPrice =
     form.totalValue && form.tokenSupply
       ? parseFloat(form.totalValue) / parseFloat(form.tokenSupply)
       : null;
+
+  const handleSign = async () => {
+    setIsSigning(true);
+    setSignError("");
+    try {
+      const contractJson = JSON.stringify({
+        type: "LiquidX/CollateralContract",
+        version: "1.0",
+        issuerDid: did,
+        issuerAddress: xrplAddress,
+        asset: {
+          name: form.name,
+          category: form.category,
+          location: form.location,
+          totalValue: parseFloat(form.totalValue),
+          tokenSupply: parseFloat(form.tokenSupply),
+        },
+        terms: {
+          collateralRatio: "10% of asset value locked as XRPL escrow",
+          repaymentObligation: "3 equal instalments via XRPL LoanPay transactions",
+          defaultConsequences: [
+            "Outstanding principal + accrued interest reversed to lenders in full",
+            "Late penalty: 2% per month overdue, compounded monthly",
+            "Collateral escrow released to lenders pro-rata",
+            "Asset ownership rights ceded to LiquidX enforcement vault",
+            "XRPL token freeze invoked on mptIssuanceId — no transfer possible",
+          ],
+          enforcementMechanism: "XRP DID-anchored identity — immutable public on-chain record",
+        },
+        signedAt: new Date().toISOString(),
+      });
+      const result = await signCollateralContract(xrplAddress, contractJson);
+      onContractSigned(result.contractHash, result.txHash);
+    } catch (err) {
+      setSignError(err instanceof Error ? err.message : "Signing failed");
+    } finally {
+      setIsSigning(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -553,75 +689,74 @@ function ConfirmStep({
         isLocking={isLockingCollateral}
       />
 
-      {/* Legal commitment — mandatory */}
+      {/* Collateral Contract — Digital Signature */}
       <div className="rounded-xl border border-orange-500/25 bg-orange-500/5 p-5 space-y-4">
         <div className="flex items-start gap-2">
           <FileText className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
           <p className="text-xs font-semibold text-orange-300 uppercase tracking-wide">
-            Legal Declaration — Required
+            Collateral Contract — Digital Signature Required
           </p>
         </div>
 
-        <div className="rounded-lg border border-white/8 bg-black/20 p-4">
-          <p className="text-sm text-white/80 leading-relaxed">
-            I,{" "}
-            <span className="text-white font-semibold">the holder of DID</span>{" "}
-            <span className="font-mono text-primary text-xs break-all">{did}</span>,
-            hereby declare that:
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-white/70">
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-0.5 shrink-0">→</span>
-              I am the lawful owner of the asset described above and have full
-              authority to tokenize it.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-0.5 shrink-0">→</span>
-              All information provided is accurate, complete, and not misleading.
-              I understand that lenders will rely on this information to make
-              financial decisions.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-0.5 shrink-0">→</span>
-              This asset registration is permanently linked to my verified
-              decentralized identity. I cannot dispute or disown this record.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-0.5 shrink-0">→</span>
-              I accept full legal responsibility for any loss suffered by lenders
-              as a result of fraud, misrepresentation, or willful omission, and
-              agree to compensate them accordingly.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-0.5 shrink-0">→</span>
-              I acknowledge that LiquidX may enforce XRPL freeze and clawback
-              mechanisms on issued tokens in the event of regulatory action or
-              confirmed fraud.
-            </li>
+        {/* Contract terms */}
+        <div className="rounded-lg border border-white/8 bg-black/20 p-4 space-y-3">
+          <p className="text-xs text-white/50 uppercase tracking-wide">By signing, you commit to:</p>
+          <ul className="space-y-2 text-sm text-white/70">
+            {[
+              "You are the lawful owner and have full authority to tokenize this asset.",
+              "10% of the asset value is locked as XRPL collateral escrow before tokenization.",
+              "Loan repayment is mandatory — 3 equal instalments via XRPL LoanPay transactions.",
+              "In case of payment default: outstanding principal + interest reversed to lenders in full, late penalty of 2% per month compounded, collateral escrow released to lenders pro-rata.",
+              "If default is unresolved: asset ownership rights are ceded to the LiquidX enforcement vault and XRPL token freeze is invoked — no transfer possible.",
+              "This record is permanently anchored to your XRP DID. It cannot be disputed or disowned.",
+            ].map((t, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-orange-400 mt-0.5 shrink-0 text-xs font-bold">{i + 1}.</span>
+                <span className="text-sm">{t}</span>
+              </li>
+            ))}
           </ul>
         </div>
 
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <div
-            onClick={() => setAccepted((v) => !v)}
-            className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-              accepted
-                ? "bg-primary border-primary"
-                : "border-white/20 group-hover:border-primary/50"
-            }`}
-          >
-            {accepted && <CheckCircle2 className="h-3 w-3 text-black" />}
+        {/* Sign button or signed state */}
+        {contractTxHash ? (
+          <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <p className="text-xs font-semibold text-emerald-300">Contract signed on XRPL</p>
+            </div>
+            <p className="text-[10px] font-mono text-white/35 break-all pl-6">
+              tx: {contractTxHash}
+            </p>
           </div>
-          <p className="text-sm text-white/70 leading-relaxed">
-            I have read and understood the declaration above. I confirm that I
-            own this asset and accept full legal responsibility for the accuracy
-            of the information provided and for any harm caused to lenders by
-            fraud or misrepresentation.{" "}
-            <span className="text-white font-medium">
-              This confirmation is cryptographically signed with my XRP DID.
-            </span>
-          </p>
-        </label>
+        ) : (
+          <div className="space-y-2">
+            <Button
+              onClick={handleSign}
+              disabled={isSigning || !eligibility?.eligible}
+              className="w-full gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-300 hover:bg-orange-500/25"
+              variant="outline"
+            >
+              {isSigning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Anchoring contract on XRPL…
+                </>
+              ) : (
+                <>
+                  <Fingerprint className="h-4 w-4" />
+                  Sign Contract with XRP DID
+                </>
+              )}
+            </Button>
+            {signError && (
+              <p className="text-xs text-red-400 text-center">{signError}</p>
+            )}
+            <p className="text-[10px] text-white/25 text-center">
+              Submits a Payment tx with your contract hash as a memo — immutable, public, on-chain.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* What happens next */}
@@ -657,7 +792,7 @@ function ConfirmStep({
         </Button>
         <Button
           onClick={onSubmit}
-          disabled={!accepted || isSubmitting || !eligibility?.eligible || isCheckingEligibility}
+          disabled={!contractTxHash || isSubmitting || !eligibility?.eligible || isCheckingEligibility}
           className="flex-1 gap-2"
         >
           {isSubmitting ? (
@@ -680,6 +815,7 @@ function ConfirmStep({
 
 export default function TokenizePage() {
   const tokenizeAsset = usePortfolioStore((s) => s.tokenizeAsset);
+  const mintMPT = usePortfolioStore((s) => s.mintMPT);
 
   // ── Identity — global store (single source of truth) ─────────────────────
   const { status: gateStatus } = useIdentityGate();
@@ -692,6 +828,8 @@ export default function TokenizePage() {
   const [success, setSuccess] = useState(false);
   const [newAssetId, setNewAssetId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [contractHash, setContractHash] = useState("");
+  const [contractTxHash, setContractTxHash] = useState("");
 
   // ── Eligibility state ─────────────────────────────────────────────────────
   const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
@@ -738,29 +876,31 @@ export default function TokenizePage() {
   const update = (field: keyof FormState, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.category) return;
-    // Final eligibility guard — must be ready
     if (!eligibility?.eligible) return;
+    if (!contractTxHash) return;
     setIsSubmitting(true);
-
-    // Simulate async submission
-    setTimeout(() => {
+    try {
       const tokenPrice =
         parseFloat(form.totalValue) / parseFloat(form.tokenSupply);
+      const sourcesArr = form.sources
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       const newAsset = tokenizeAsset({
         name: form.name,
         category: form.category as AssetCategory,
         description: form.description,
         longDescription: form.description,
-        image: PLACEHOLDER_IMAGES[form.category as AssetCategory],
+        image: form.imageUrl.trim() || PLACEHOLDER_IMAGES[form.category as AssetCategory],
         location: form.location,
         totalValue: parseFloat(form.totalValue),
         tokenSupply: parseFloat(form.tokenSupply),
         tokenPrice,
         projectedYield: parseFloat(form.projectedYield),
         liquidityScore: parseInt(form.liquidityScore),
-        minInvestment: 100,
+        minInvestment: parseFloat(form.minInvestment) || 100,
         tags: [form.category],
         highlights: [
           `${form.projectedYield}% projected annual yield`,
@@ -771,11 +911,42 @@ export default function TokenizePage() {
         fundingTarget: parseFloat(form.totalValue),
         fundingDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
         validatorId: "validator-001",
+        sources: sourcesArr,
+        issuerDid: displayDid || undefined,
+        issuerVerified: isDidVerified,
+        legalDeclarationHash: contractHash || undefined,
+        contractTxHash: contractTxHash || undefined,
+        ...(form.docType && {
+          proofOfOwnership: {
+            documentType: form.docType,
+            issuedBy: form.docIssuedBy,
+            issuedDate: form.docDate,
+            hash: "",
+            borrowerDid: displayDid || "",
+            didVerified: isDidVerified,
+          },
+        }),
       });
+      const xrpl = await createMPTIssuance({
+        assetName: form.name,
+        maxAmount: parseFloat(form.tokenSupply),
+        transferFeePercent: 0.5,
+        requireAuth: true,
+      });
+      mintMPT(newAsset.id, xrpl);
+      // Persist to Supabase (fire-and-forget — store already updated)
+      if (xrplAddress) {
+        saveAsset(xrplAddress, { ...newAsset, mptIssuanceId: xrpl.mptIssuanceId }).catch(
+          (e) => console.warn("[Tokenize] Supabase saveAsset failed:", e)
+        );
+      }
       setNewAssetId(newAsset.id);
       setSuccess(true);
+    } catch (err) {
+      console.error("[Tokenize] Failed:", err);
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
 
   // ── Success screen ──────────────────────────────────────────────────────────
@@ -910,6 +1081,7 @@ export default function TokenizePage() {
             <ConfirmStep
               form={form}
               did={displayDid ?? ""}
+              xrplAddress={xrplAddress ?? ""}
               onBack={() => setStep(1)}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
@@ -917,6 +1089,8 @@ export default function TokenizePage() {
               isCheckingEligibility={isCheckingEligibility}
               onLockCollateral={handleLockCollateral}
               isLockingCollateral={isLockingCollateral}
+              onContractSigned={(h, t) => { setContractHash(h); setContractTxHash(t); }}
+              contractTxHash={contractTxHash}
             />
           )}
         </>

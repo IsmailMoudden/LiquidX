@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Asset } from "@/lib/types";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { formatCurrency } from "@/lib/utils";
-import { sendXRPLPayment, XRPLPaymentResult } from "@/lib/xrpl";
+import { sendXRPLPayment, XRPLPaymentResult } from "@/lib/xrpl-client";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import {
   Dialog,

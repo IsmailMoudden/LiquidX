@@ -1,7 +1,6 @@
 // ─── LiquidX — Global Identity Store ─────────────────────────────────────────
 // Single source of truth for wallet address + DID state.
-// Persisted to sessionStorage so state survives page navigation but clears
-// when the browser tab is closed (appropriate for financial applications).
+// Persisted to localStorage so state survives page refreshes and browser restarts.
 //
 // Data flow:
 //   User enters XRPL address (Account page)
@@ -13,14 +12,14 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {
-  attachDIDToUser,
-  resolveDID,
   verifyDIDDocument,
   createUserDID,
   formatDID,
   type UserIdentity,
   type DIDVerificationResult,
+  type DIDDocument,
 } from "@/lib/did";
+import { createClient } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +43,8 @@ export interface IdentityState {
   linkWallet: (address: string) => Promise<void>;
   reResolveDID: () => Promise<void>;
   clearIdentity: () => void;
+  saveToSupabase: (userId: string) => Promise<void>;
+  loadFromSupabase: (userId: string) => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -90,13 +91,45 @@ export const useIdentityStore = create<IdentityState>()(
           verification: null,
         });
 
+        // Save address to Supabase immediately — don't wait for DID resolution
+        // so the profile is always up to date even if DID fails.
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("profiles").upsert({
+            id: user.id,
+            xrpl_address: trimmed,
+            updated_at: new Date().toISOString(),
+          });
+        }
+
         try {
-          const id = await attachDIDToUser(trimmed);
-          // Run detailed verification pass
-          const resolution = await resolveDID(id.did);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const v = verifyDIDDocument(id.did, resolution.didDocument as any);
+          // Resolve via server API — avoids browser WebSocket timeouts/blocks.
+          const res = await fetch(`/api/xrpl/did/resolve?address=${encodeURIComponent(trimmed)}`);
+          const data = await res.json();
+
+          const did = createUserDID(trimmed);
+          const rawDoc = (data.document ?? null) as DIDDocument | null;
+          const v = verifyDIDDocument(did, rawDoc);
+
+          const id: UserIdentity = {
+            xrplAddress: trimmed,
+            did,
+            didVerified: v.valid,
+            didDocument: v.document,
+            verificationStatus: v.valid ? "verified" : (rawDoc ? "rejected" : "unverified"),
+            trustLevel: v.trustLevel,
+            kycProvider: v.kycProvider,
+            kycVerifiedAt: v.kycVerifiedAt,
+            jurisdiction: v.jurisdiction,
+          };
+
           set({ identity: id, verification: v, didLoading: false });
+
+          // Update Supabase with full DID info now that resolution succeeded
+          if (user) {
+            await get().saveToSupabase(user.id);
+          }
         } catch (err) {
           set({
             didError: err instanceof Error ? err.message : "Failed to resolve DID.",
@@ -123,10 +156,65 @@ export const useIdentityStore = create<IdentityState>()(
           didLoading: false,
           didError: "",
         }),
+
+      // ── saveToSupabase ─────────────────────────────────────────────────────
+      // Upserts the current identity into the profiles table.
+      saveToSupabase: async (userId: string) => {
+        const { xrplAddress, identity } = get();
+        if (!xrplAddress) return;
+        const supabase = createClient();
+        await supabase.from("profiles").upsert({
+          id: userId,
+          xrpl_address: xrplAddress,
+          did_verified: identity?.didVerified ?? false,
+          trust_level: identity?.trustLevel ?? "low",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          did_document: (identity?.didDocument as any) ?? null,
+          updated_at: new Date().toISOString(),
+        });
+      },
+
+      // ── loadFromSupabase ───────────────────────────────────────────────────
+      // Fetches the profile for userId and hydrates the store.
+      // Skips if there's already a wallet linked (localStorage cache is fresh).
+      loadFromSupabase: async (userId: string) => {
+        // If localStorage already has a linked wallet, trust it — no round-trip needed
+        if (get().walletLinked) return;
+
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("xrpl_address, did_verified, trust_level, did_document")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("[Identity] loadFromSupabase error:", error.message);
+          return;
+        }
+        if (!data?.xrpl_address) return;
+
+        // Restore state from DB without re-resolving DID (faster load)
+        set({
+          xrplAddress: data.xrpl_address,
+          walletLinked: true,
+          identity: {
+            xrplAddress: data.xrpl_address,
+            did: createUserDID(data.xrpl_address),
+            didVerified: data.did_verified ?? false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            didDocument: (data.did_document as any) ?? undefined,
+            verificationStatus: data.did_verified ? "verified" : "unverified",
+            trustLevel: (data.trust_level as "low" | "medium" | "high") ?? "low",
+          },
+          didLoading: false,
+          didError: "",
+        });
+      },
     }),
     {
       name: "liquidx-identity-v1",
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
       // Only persist the data — not the async functions
       partialize: (state) => ({
         xrplAddress: state.xrplAddress,

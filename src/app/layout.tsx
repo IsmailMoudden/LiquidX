@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navbar } from "@/components/layout/Navbar";
 import { TonProvider } from "@/components/providers/TonProvider";
 import { DeadlineWatcher } from "@/components/providers/DeadlineWatcher";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
   title: "LiquidX — Fractional Real-World Assets",
@@ -22,8 +22,7 @@ export default function RootLayout({
         <AuthProvider>
           <TonProvider>
             <DeadlineWatcher />
-            <Navbar />
-            <main>{children}</main>
+            <AppShell>{children}</AppShell>
           </TonProvider>
         </AuthProvider>
       </body>

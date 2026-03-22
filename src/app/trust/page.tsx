@@ -15,6 +15,7 @@ import {
   Eye,
   RefreshCw,
   BadgeCheck,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -80,15 +81,16 @@ export default function TrustPage() {
           <div>
             <h1 className="text-3xl font-bold text-white">Trust & Compliance</h1>
             <p className="text-sm text-white/40 mt-0.5">
-              How LiquidX protects lenders and holds issuers accountable
+              Verified identity. Zero exposure. Full accountability.
             </p>
           </div>
         </div>
         <p className="text-white/50 leading-relaxed text-sm mt-4">
-          LiquidX is built on the principle that every asset must be traceable to a
-          real, verified, legally accountable person or entity. This page explains the
-          identity, verification, legal, and technical frameworks that make this
-          possible.
+          LiquidX verifies every participant through a licensed KYC provider — but
+          your identity is never stored on-chain or exposed to other users. The XRP
+          Ledger records a cryptographic proof (your DID anchor), not your personal
+          data. You are known to LiquidX and regulators. You are pseudonymous to
+          everyone else.
         </p>
 
         {/* Trust badges row */}
@@ -98,6 +100,7 @@ export default function TrustPage() {
             { icon: <BadgeCheck className="h-3.5 w-3.5" />, label: "Validator-Approved Assets" },
             { icon: <Scale className="h-3.5 w-3.5" />, label: "Legal Accountability" },
             { icon: <Zap className="h-3.5 w-3.5" />, label: "XRPL Settlement" },
+            { icon: <Eye className="h-3.5 w-3.5" />, label: "Identity Confidential" },
           ].map(({ icon, label }) => (
             <span
               key={label}
@@ -115,7 +118,7 @@ export default function TrustPage() {
         <SectionHeading
           icon={<Fingerprint className="h-5 w-5" />}
           label="Decentralized Identity (XRP DID)"
-          sublabel="Every issuer is a verified, named entity"
+          sublabel="Every issuer is verified — identity stays confidential"
         />
 
         <p className="text-sm text-white/50 mb-5 leading-relaxed">
@@ -128,10 +131,11 @@ export default function TrustPage() {
           >
             XRP Ledger DID standard <ExternalLink className="h-3 w-3" />
           </a>{" "}
-          to anchor every asset issuer's identity on-chain. A Decentralized
-          Identifier (DID) is a globally unique, self-sovereign identifier that
-          binds together a person's legal identity, their wallet address, and their
-          on-chain activity — without requiring any central authority.
+          to verify every issuer through a licensed KYC provider. KYC happens
+          entirely off-chain. Only a cryptographic proof — the DID anchor — is
+          recorded on the ledger. Other participants see a pseudonymous DID address,
+          not your legal name or documents. You are accountable to the platform and
+          regulators; you are pseudonymous to the world.
         </p>
 
         <div className="space-y-0 rounded-xl border border-white/8 bg-white/2 px-5 divide-y divide-white/6">
@@ -147,13 +151,23 @@ export default function TrustPage() {
           />
           <FeatureRow
             icon={<Eye className="h-4 w-4" />}
-            title="Traceability and auditability"
-            description="Every asset issuance, every loan request, and every repayment is recorded on the XRPL and permanently linked to the issuer's DID. Lenders can always verify who is behind an asset before committing funds."
+            title="Accountable to the platform — pseudonymous on-chain"
+            description="Every asset issuance, loan request, and repayment is permanently linked to the issuer's DID on the XRPL. The platform and regulators can always trace activity to a real, verified person. Other participants see the DID address only — never the underlying identity."
           />
           <FeatureRow
             icon={<Users className="h-4 w-4" />}
-            title="No anonymous participation"
-            description="Anonymous actors cannot register assets or request loans on LiquidX. Identity verification is mandatory for all issuers. This is not optional and cannot be bypassed."
+            title="Verified pseudonymity — not anonymity"
+            description="Anonymous actors cannot register assets or request loans on LiquidX. KYC is mandatory — but your identity is never disclosed publicly. You are known to LiquidX and to no one else on the ledger. This is the difference between anonymity (no verification) and pseudonymity (verified, not exposed)."
+          />
+          <FeatureRow
+            icon={<Lock className="h-4 w-4" />}
+            title="Privacy-preserving by design"
+            description="Identity documents and KYC results are held exclusively by the licensed verification provider. Nothing personally identifiable is ever stored on the XRP Ledger or shared with other platform participants. The DID anchor proves verification without revealing any personal data."
+          />
+          <FeatureRow
+            icon={<Globe className="h-4 w-4" />}
+            title="Freedom from institutional bias"
+            description="A DID proves you are a real, verified person — without revealing your nationality, country of origin, or any factor a traditional bank might use to reject you. On LiquidX, your asset is your credential. Financing is based on what you own, not where you're from or whether you have the right bank account."
           />
         </div>
 
@@ -164,9 +178,9 @@ export default function TrustPage() {
             {[
               { n: "1", text: "Issuer connects their XRPL wallet to LiquidX." },
               { n: "2", text: "Issuer completes KYC through a licensed identity provider." },
-              { n: "3", text: "KYC result is anchored to their DID on the XRPL." },
-              { n: "4", text: 'DID is verified by LiquidX and a "Verified Identity" badge is assigned.' },
-              { n: "5", text: "All subsequent asset registrations and loan requests are linked to this DID." },
+              { n: "3", text: "A cryptographic proof of the KYC result is anchored to their DID on the XRPL — no personal data is written on-chain." },
+              { n: "4", text: 'DID is verified by LiquidX and a "Verified Identity" badge is assigned. Other users see this badge, not the identity behind it.' },
+              { n: "5", text: "All subsequent asset registrations and loan requests are linked to this DID. On-chain records contain transaction hashes — never the issuer's legal identity." },
             ].map(({ n, text }) => (
               <div key={n} className="flex items-start gap-3 text-sm">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-bold shrink-0 mt-0.5">
@@ -350,7 +364,7 @@ export default function TrustPage() {
                 </span>
               ),
               meaning:
-                "The issuer has completed KYC and holds an active XRP DID. Their legal identity is bound to this asset and cannot be disputed.",
+                "The issuer has completed KYC through a licensed provider and holds an active XRP DID. Their legal identity is bound to this asset and known to LiquidX — but not disclosed publicly. The badge confirms accountability, not exposure.",
             },
             {
               badge: (

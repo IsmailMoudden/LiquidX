@@ -62,6 +62,18 @@ export interface Asset {
   ownershipProofHash?: string;     // SHA-256 hash of the uploaded ownership document
   legalDeclarationHash?: string;   // Hash of the signed legal commitment
   verificationStatus?: "pending" | "verified" | "rejected";
+  // ── Sources & Proof ──
+  sources?: string[];              // Public reference URLs for asset verification
+  proofOfOwnership?: {
+    documentType: string;          // e.g. "Title Deed", "Certificate of Authenticity"
+    issuedBy: string;              // Issuing authority
+    issuedDate: string;            // ISO date
+    hash: string;                  // SHA-256 of the document
+    borrowerDid: string;           // XRPL DID of the borrower
+    didVerified: boolean;
+  };
+  // ── Digital signature ──
+  contractTxHash?: string;         // XRPL tx hash of the signed collateral contract
 }
 
 // ─── Vault ────────────────────────────────────────────────────────────────────
@@ -106,6 +118,9 @@ export interface Vault {
   status: VaultStatus;
   // XRPL
   xrplBrokerAddress: string;
+  // DestinationTag — routes deposits to this vault within the platform wallet.
+  // Each vault has a unique tag so funds are logically separated on-chain.
+  destinationTag: number;
   xrplHash?: string;
   createdAt: string;
 }
@@ -152,6 +167,7 @@ export interface LendingPosition {
   refundedAt?: string;
   // XRPL (hidden from user, used for settlement)
   xrplEscrowHash?: string;
+  xrplEscrowSequence?: number;
   xrplReleaseHash?: string;
   xrplCancelHash?: string;
   // Validator approval
