@@ -201,8 +201,8 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
               <div className="border-t border-white/8 pt-2 flex justify-between">
                 <span className="text-white/40">XRPL escrow lock</span>
                 <div className="text-right">
-                  <span className="text-yellow-400 font-semibold font-mono">~{xrpEquivalent.toLocaleString()} XRP</span>
-                  <span className="text-white/30 font-mono text-xs ml-1">(≈{formatCurrency(amountNum)})</span>
+                  <span className="text-yellow-400 font-semibold font-mono">{formatCurrency(amountNum)} USDC</span>
+                  <p className="text-white/30 font-mono text-xs">~{xrpEquivalent.toLocaleString()} XRP on devnet</p>
                 </div>
               </div>
             </div>
