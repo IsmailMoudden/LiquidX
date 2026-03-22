@@ -4,6 +4,54 @@ const deadline = (daysFromNow: number) =>
   new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
 
 export const MOCK_ASSETS: Asset[] = [
+  // ─── DEMO ASSET — Live devnet transactions ──────────────────────────────────
+  {
+    id: "demo-lagos-property",
+    name: "Lekki Phase 1 Residence — Lagos",
+    category: "real-estate",
+    description: "3-bedroom home in Lekki Phase 1, Lagos. Owner seeks a $100 bridge loan at 8% APR backed by on-chain collateral.",
+    longDescription:
+      "A 210 sqm detached residence in Lekki Phase 1, Lagos Island — one of Nigeria's most liquid residential markets. The property is valued at $1,000 by an independent appraiser. The owner, a verified DID holder on XRPL, is seeking a $100 bridge loan at 8% APR over 3 monthly instalments. Collateral escrow (10% of asset value) is locked on-chain. All transactions — MPT issuance, LoanSet, and each LoanPay — are verified on devnet.xrpl.org in real time.",
+    image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",
+    location: "Lekki Phase 1, Lagos, Nigeria",
+    totalValue: 1_000,
+    tokenSupply: 10,
+    tokenPrice: 100,
+    projectedYield: 8,
+    liquidityScore: 7,
+    minInvestment: 100,
+    tags: ["Real Estate", "Bridge Loan", "Live Demo"],
+    highlights: [
+      "$100 loan — 8% APR, 3 monthly instalments",
+      "MPT issuance confirmed on devnet (XLS-33)",
+      "LoanSet confirmed on devnet (XLS-66)",
+      "DID verified — W3C identity anchored on XRPL",
+    ],
+    fundingTarget: 100,
+    amountRaised: 0,
+    fundingDeadline: deadline(30),
+    fundingStatus: "open",
+    investorCount: 0,
+    validatorId: "validator-001",
+    complianceApproved: true,
+    issuerDid: `did:xrpl:1:rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd`,
+    issuerVerified: true,
+    verificationStatus: "verified",
+    // Real on-chain IDs — devnet.xrpl.org
+    mptIssuanceId: "6CB0A0F6226265915A55F8DFBC3D783F6361E18DBD87FB2B182693BE1EE62A1A",
+    mptIssuerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+    contractTxHash: "679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    sources: ["https://devnet.xrpl.org/transactions/2FDA91218EC8A4F8E28337C497F9898567721EBA1464D1DC5045AF1005CA2D28"],
+    proofOfOwnership: {
+      documentType: "Certificate of Occupancy",
+      issuedBy: "Lagos State Ministry of Physical Planning",
+      issuedDate: "2023-06-15",
+      hash: "f430225ea2653a969c931f2d385c9a291c21f12d8914074fcd5a90f3956530b1",
+      borrowerDid: "did:xrpl:1:rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+      didVerified: true,
+    },
+  },
+
   // ─── REAL ESTATE — Dubai Residence Development ──────────────────────────────
   {
     id: "project-dubai-marina-residence",

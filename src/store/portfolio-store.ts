@@ -87,6 +87,37 @@ const SEED_HOLDINGS: Holding[] = [
   },
 ];
 
+// ─── DEMO LOAN — real XLS-66 LoanSet on devnet ───────────────────────────────
+// LoanSet hash: 679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11
+// LoanID (Loan ledger index): F430225EA2653A969C931F2D385C9A291C21F12D8914074FCD5A90F3956530B1
+// PeriodicPayment: 337727 drops = 0.338 XRP @ $100/XRP = $33.77/instalment
+const DEMO_LOAN_REPAYMENTS: LoanRepayment[] = [
+  {
+    id: "rep-demo-1",
+    amount: 33.77,
+    principal: 33.33,
+    interest: 0.44,
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "due",
+  },
+  {
+    id: "rep-demo-2",
+    amount: 33.77,
+    principal: 33.33,
+    interest: 0.44,
+    dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "due",
+  },
+  {
+    id: "rep-demo-3",
+    amount: 33.77,
+    principal: 33.34,
+    interest: 0.43,
+    dueDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "due",
+  },
+];
+
 // Seed: one active loan on Solar Farm Alpha (asset-002) to demonstrate the lending flow
 const SEED_LOAN_REPAYMENTS: LoanRepayment[] = [
   {
@@ -116,6 +147,30 @@ const SEED_LOAN_REPAYMENTS: LoanRepayment[] = [
 ];
 
 const SEED_LOANS: Loan[] = [
+  // ─── LIVE DEMO — real XLS-66 LoanSet confirmed on devnet ─────────────────
+  {
+    id: "loan-demo-lagos",
+    brokerId: "vault-lagos-demo",
+    assetId: "demo-lagos-property",
+    assetName: "Lekki Phase 1 Residence — Lagos",
+    borrowerAddress: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd",
+    principal: 100,
+    interestRatePercent: 8.0,
+    termDays: 90,
+    originationFee: 0,
+    startDate: new Date().toISOString(),
+    maturityDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    repaymentSchedule: DEMO_LOAN_REPAYMENTS,
+    totalRepaid: 0,
+    status: "active",
+    // Real devnet tx — verify on devnet.xrpl.org
+    xrplLoanHash: "679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    xrplLoanId: "F430225EA2653A969C931F2D385C9A291C21F12D8914074FCD5A90F3956530B1",
+    underwritingScore: 91,
+    underwritingNotes: "DID verified on XRPL. 10% collateral escrow locked on-chain. Certificate of Occupancy hashed.",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
   {
     id: "loan-seed-001",
     brokerId: "broker-002",
@@ -155,6 +210,41 @@ const SEED_MPT_ISSUANCES: MPTIssuance[] = [
 ];
 
 const SEED_TRANSACTIONS: Transaction[] = [
+  // ─── LIVE DEMO tx — all confirmed on devnet.xrpl.org ─────────────────────
+  {
+    id: "tx-demo-mpt",
+    type: "mpt-issuance",
+    assetId: "demo-lagos-property",
+    assetName: "Lekki Phase 1 Residence — Lagos",
+    tokens: 10,
+    price: 100,
+    total: 1_000,
+    timestamp: new Date().toISOString(),
+    xrplHash: "2FDA91218EC8A4F8E28337C497F9898567721EBA1464D1DC5045AF1005CA2D28",
+    xrplStatus: "confirmed",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/2FDA91218EC8A4F8E28337C497F9898567721EBA1464D1DC5045AF1005CA2D28",
+    xrplLedger: 527473,
+    xrplTxType: "MPTokenIssuanceCreate",
+    label: "Asset tokenized — 10 tokens @ $100",
+  },
+  {
+    id: "tx-demo-loanset",
+    type: "loan-request",
+    assetId: "demo-lagos-property",
+    assetName: "Lekki Phase 1 Residence — Lagos",
+    tokens: 0,
+    price: 0,
+    total: 100,
+    timestamp: new Date().toISOString(),
+    xrplHash: "679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    xrplStatus: "confirmed",
+    xrplExplorerUrl: "https://devnet.xrpl.org/transactions/679E790C6A5E31B0BDDB2510B04FEF0073D58FAF007A3C729FBB87F595BC3E11",
+    xrplLedger: 527869,
+    xrplTxType: "LoanSet",
+    brokerId: "vault-lagos-demo",
+    loanId: "loan-demo-lagos",
+    label: "$100 loan originated at 8% APR — XLS-66 LoanSet",
+  },
   {
     id: "tx-seed-001",
     type: "invest",

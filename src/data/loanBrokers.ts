@@ -7,6 +7,7 @@ const PLATFORM = "rQDN8QJXcJUVkk3wtRtLwaiqiwxrLPnWik";
 // DestinationTag assignment — unique uint32 per asset, deterministic.
 // Used in every EscrowCreate so lender capital is routed to the right vault on-chain.
 export const VAULT_TAGS: Record<string, number> = {
+  "demo-lagos-property":            1000,   // live demo asset — devnet tx confirmed
   "project-dubai-marina-residence": 1001,
   "project-geneva-flat":            1002,
   "vehicle-porsche-911":            1003,
@@ -21,6 +22,34 @@ export const VAULT_TAGS: Record<string, number> = {
 };
 
 export const LOAN_BROKERS: LoanBrokerConfig[] = [
+  // ─── LIVE DEMO VAULT — all tx hashes confirmed on devnet.xrpl.org ─────────
+  {
+    id: "vault-lagos-demo",
+    assetId: "demo-lagos-property",
+    name: "Lekki Phase 1 Residence — Loan Pool",
+    description: "Live demo vault — $100 bridge loan at 8% APR, 3 monthly instalments. LoanBrokerSet + LoanSet confirmed on XRPL devnet (XLS-66).",
+    expectedReturnPercent: 8.0,
+    riskLevel: "low",
+    xrplBrokerAddress: PLATFORM,
+    destinationTag: VAULT_TAGS["demo-lagos-property"],
+    originationFeePercent: 0,
+    servicingFeePercent: 0.5,
+    firstLossCoverPercent: 10,
+    totalDeposited: 0,
+    availableCapital: 100,
+    utilization: 0,
+    activeLoansCount: 1,
+    totalOriginated: 100,
+    defaultRate: 0,
+    lenderCount: 0,
+    minDeposit: 100,
+    lockupDays: 90,
+    status: "active",
+    // Real LoanBrokerSet tx on devnet (XLS-66) — broker A4ECF8EF...
+    xrplHash: "282563D29EA37B82D1985E1A3A5B97320E120826DF993BF42F954314C40292DF",
+    createdAt: new Date().toISOString(),
+  },
+
   {
     id: "vault-dubai-marina",
     assetId: "project-dubai-marina-residence",
