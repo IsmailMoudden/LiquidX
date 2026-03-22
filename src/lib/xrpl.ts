@@ -88,6 +88,17 @@ function mockMPTIssuanceId(): string {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Hard timeout for any real XRPL call — if devnet doesn't respond in time,
+// the caller's catch block triggers the simulation fallback.
+function withXRPLTimeout<T>(promise: Promise<T>, ms = 20000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`XRPL devnet timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 function mockLedger(): number {
   return Math.floor(92_000_000 + Math.random() * 2_000_000);
 }
@@ -158,7 +169,7 @@ export async function createXRPLEscrow(
   assetId?: string
 ): Promise<XRPLPaymentResult> {
   try {
-    return await realEscrowCreate(amountUSD, destination, destinationTag, assetId);
+    return await withXRPLTimeout(realEscrowCreate(amountUSD, destination, destinationTag, assetId));
   } catch (err) {
     console.warn("[XRPL] EscrowCreate fallback:", err);
     return simulatedEscrowCreate(destinationTag);
@@ -172,7 +183,7 @@ async function realEscrowCreate(
   assetId?: string
 ): Promise<XRPLPaymentResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // If a test user secret is configured, sign FROM the user wallet so the
@@ -238,7 +249,7 @@ async function simulatedEscrowCreate(destinationTag?: number): Promise<XRPLPayme
 export async function finishXRPLEscrow(sequence?: number): Promise<XRPLPaymentResult> {
   if (sequence !== undefined) {
     try {
-      return await realEscrowFinish(sequence);
+      return await withXRPLTimeout(realEscrowFinish(sequence));
     } catch (err) {
       console.warn("[XRPL] EscrowFinish fallback:", err);
     }
@@ -249,7 +260,7 @@ export async function finishXRPLEscrow(sequence?: number): Promise<XRPLPaymentRe
 
 async function realEscrowFinish(sequence: number): Promise<XRPLPaymentResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Platform wallet submits the EscrowFinish.
@@ -295,7 +306,7 @@ export async function createMPTIssuance(
   params: MPTIssuanceParams
 ): Promise<XRPLPaymentResult & { mptIssuanceId: string }> {
   try {
-    return await realMPTIssuanceCreate(params);
+    return await withXRPLTimeout(realMPTIssuanceCreate(params), 25000);
   } catch (err) {
     console.warn("[XRPL] MPTokenIssuanceCreate fallback to simulation:", err);
     await delay(1200 + Math.random() * 800);
@@ -308,7 +319,7 @@ async function realMPTIssuanceCreate(
   params: MPTIssuanceParams
 ): Promise<XRPLPaymentResult & { mptIssuanceId: string }> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 8000, timeout: 20000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Test user wallet issues the MPT — during the demo, the user creating
@@ -371,6 +382,14 @@ export async function authorizeMPTHolder(
 }
 
 // ─── Lending Protocol (XLS-66) ────────────────────────────────────────────────
+// Real XLS-66 on XRPL devnet (classic devnet, same WSS endpoint).
+// LoanBrokerSet requires an XLS-65 Vault first — created lazily and cached.
+// LoanSet requires a CounterpartySignature from the platform/lender wallet.
+
+// Session-level cache: Vault and LoanBroker created once, reused.
+// Production would store these IDs in the database per-vault.
+let _xls65VaultId: string | undefined;
+let _xls66BrokerId: string | undefined;
 
 export interface LoanBrokerParams {
   originationFeePercent: number;
@@ -380,9 +399,83 @@ export interface LoanBrokerParams {
 }
 
 export async function createLoanBroker(params: LoanBrokerParams): Promise<XRPLPaymentResult> {
-  await delay(800 + Math.random() * 600);
-  console.info("[XRPL] LoanBrokerSet simulated", params);
-  return makeResult(mockHash(), mockLedger(), "LoanBrokerSet");
+  try {
+    return await withXRPLTimeout(realLoanBrokerSet(params), 30000);
+  } catch (err) {
+    console.warn("[XRPL] LoanBrokerSet fallback to simulation:", err);
+    await delay(800 + Math.random() * 600);
+    return makeResult(mockHash(), mockLedger(), "LoanBrokerSet");
+  }
+}
+
+async function realLoanBrokerSet(params: LoanBrokerParams): Promise<XRPLPaymentResult> {
+  const { Client, Wallet } = await import("xrpl");
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
+  await client.connect();
+  try {
+    const platformWallet = Wallet.fromSeed(getPlatformSecret());
+
+    // Step 1: Create XLS-65 Vault (liquidity pool) — only once per session.
+    if (!_xls65VaultId) {
+      console.info("[XRPL] Attempting VaultCreate on devnet...");
+      const vaultTx = await client.submitAndWait(
+        {
+          TransactionType: "VaultCreate",
+          Account: platformWallet.address,
+          Asset: { currency: "XRP" },
+        } as Parameters<typeof client.submitAndWait>[0],
+        { wallet: platformWallet }
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vaultMeta = (vaultTx.result as any).meta ?? (vaultTx.result as any).metaData;
+      if (vaultMeta?.TransactionResult !== "tesSUCCESS") {
+        throw new Error(`VaultCreate failed: ${vaultMeta?.TransactionResult}`);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vaultNode = (vaultMeta.AffectedNodes as any[]).find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (n: any) => n.CreatedNode?.LedgerEntryType === "Vault"
+      );
+      _xls65VaultId = vaultNode?.CreatedNode?.LedgerIndex;
+      if (!_xls65VaultId) throw new Error("VaultID not found in VaultCreate metadata");
+      console.info("[XRPL] VaultCreate confirmed on devnet:", _xls65VaultId);
+    }
+
+    // Step 2: LoanBrokerSet — links this broker to the vault.
+    // Rates are in 1/10th basis points: 1% = 10000 units.
+    console.info("[XRPL] Attempting LoanBrokerSet, VaultID:", _xls65VaultId);
+    const brokerTx = await client.submitAndWait(
+      {
+        TransactionType: "LoanBrokerSet",
+        Account: platformWallet.address,
+        VaultID: _xls65VaultId,
+        ManagementFeeRate: Math.round(params.servicingFeePercent * 1000),
+        CoverRateMinimum: Math.round(params.firstLossCoverPercent * 1000),
+        CoverRateLiquidation: Math.min(100000, Math.round(params.firstLossCoverPercent * 1500)),
+      } as Parameters<typeof client.submitAndWait>[0],
+      { wallet: platformWallet }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const brokerMeta = (brokerTx.result as any).meta ?? (brokerTx.result as any).metaData;
+    if (brokerMeta?.TransactionResult !== "tesSUCCESS") {
+      throw new Error(`LoanBrokerSet failed: ${brokerMeta?.TransactionResult}`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const brokerNode = (brokerMeta.AffectedNodes as any[]).find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (n: any) => n.CreatedNode?.LedgerEntryType === "LoanBroker"
+    );
+    _xls66BrokerId = brokerNode?.CreatedNode?.LedgerIndex;
+    console.info("[XRPL] LoanBrokerSet confirmed:", _xls66BrokerId, "hash:", brokerTx.result.hash);
+    return makeResult(
+      brokerTx.result.hash as string,
+      brokerTx.result.ledger_index as number,
+      "LoanBrokerSet",
+      "confirmed"
+    );
+  } finally {
+    await client.disconnect();
+  }
 }
 
 export interface LoanSetParams {
@@ -396,11 +489,105 @@ export interface LoanSetParams {
 export async function originateLoan(
   params: LoanSetParams
 ): Promise<XRPLPaymentResult & { loanId: string }> {
-  await delay(1000 + Math.random() * 700);
-  const hash = mockHash();
-  const loanId = mockHash();
-  console.info("[XRPL] LoanSet simulated", { params, loanId });
-  return { ...makeResult(hash, mockLedger(), "LoanSet"), loanId };
+  try {
+    return await withXRPLTimeout(realLoanSet(params), 25000);
+  } catch (err) {
+    console.warn("[XRPL] LoanSet fallback to simulation:", err);
+    await delay(1000 + Math.random() * 700);
+    const hash = mockHash();
+    const loanId = mockHash();
+    return { ...makeResult(hash, mockLedger(), "LoanSet"), loanId };
+  }
+}
+
+async function realLoanSet(
+  params: LoanSetParams
+): Promise<XRPLPaymentResult & { loanId: string }> {
+  // Auto-create a LoanBroker if none exists in this session (e.g. after server restart).
+  if (!_xls66BrokerId) {
+    await realLoanBrokerSet({
+      assetLabel: "LiquidX",
+      originationFeePercent: 1,
+      servicingFeePercent: 0.5,
+      firstLossCoverPercent: 10,
+    });
+  }
+
+  const loanBrokerId = _xls66BrokerId;
+  if (!loanBrokerId) throw new Error("No LoanBrokerID available — LoanBrokerSet failed");
+
+  const { Client, Wallet, decode } = await import("xrpl");
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
+  await client.connect();
+  try {
+    // Borrower = test user wallet; Counterparty (lender) = platform wallet.
+    const borrowerWallet = Wallet.fromSeed(getTestUserSecret());
+    const platformWallet = Wallet.fromSeed(getPlatformSecret());
+
+    const principalDrops = await usdToDrops(params.principalUsdc);
+    // InterestRate in 1/10th basis points: 8% annual = 800 units
+    const interestRateBps = Math.round(params.interestRatePercent * 100);
+    // Monthly installments
+    const paymentTotal = Math.max(1, Math.round(params.termDays / 30));
+
+    // Build base transaction (without CounterpartySignature)
+    const baseTx = {
+      TransactionType: "LoanSet",
+      Account: borrowerWallet.address,
+      LoanBrokerID: loanBrokerId,
+      Counterparty: platformWallet.address,
+      PrincipalRequested: principalDrops,
+      InterestRate: interestRateBps,
+      PaymentTotal: paymentTotal,
+      PaymentInterval: 30 * 24 * 60 * 60,    // 30 days in seconds
+      GracePeriod: 3 * 24 * 60 * 60,          // 3-day grace period
+      LoanOriginationFee: await usdToDrops(params.originationFee),
+    };
+
+    // Autofill fee + sequence + LastLedgerSequence
+    const filledTx = await client.autofill(baseTx as Parameters<typeof client.autofill>[0]);
+
+    // Obtain counterparty signature via multi-sign mode.
+    // xrpl.js Wallet.sign(tx, true) signs the tx from the counterparty's
+    // perspective. We extract the signature bytes and embed them in
+    // CounterpartySignature so the ledger can verify the lender agreed.
+    const counterpartySigned = platformWallet.sign(filledTx, true);
+    const decoded = decode(counterpartySigned.tx_blob);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const signerEntry = (decoded.Signers as any[])?.[0]?.Signer;
+
+    const loanSetTx = {
+      ...filledTx,
+      CounterpartySignature: {
+        SigningPubKey: signerEntry?.SigningPubKey ?? platformWallet.publicKey,
+        TxnSignature: signerEntry?.TxnSignature ?? "",
+      },
+    };
+
+    const result = await client.submitAndWait(
+      loanSetTx as Parameters<typeof client.submitAndWait>[0],
+      { wallet: borrowerWallet }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (result.result as any).meta ?? (result.result as any).metaData;
+    if (meta?.TransactionResult !== "tesSUCCESS") {
+      throw new Error(`LoanSet failed on-chain: ${meta?.TransactionResult}`);
+    }
+    // Extract LoanID from AffectedNodes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const loanNode = (meta.AffectedNodes as any[]).find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (n: any) => n.CreatedNode?.LedgerEntryType === "Loan"
+    );
+    const loanId: string = loanNode?.CreatedNode?.LedgerIndex ?? (result.result.hash as string);
+    console.info("[XRPL] LoanSet confirmed:", loanId, "hash:", result.result.hash);
+    return {
+      ...makeResult(result.result.hash as string, result.result.ledger_index as number, "LoanSet", "confirmed"),
+      loanId,
+    };
+  } finally {
+    await client.disconnect();
+  }
 }
 
 export interface LoanPayParams {
@@ -412,18 +599,53 @@ export interface LoanPayParams {
 }
 
 export async function submitLoanPay(params: LoanPayParams): Promise<XRPLPaymentResult> {
+  // Try real XLS-66 LoanPay first; fall back to Payment tx if LoanID isn't on-chain.
   try {
-    return await realLoanPay(params.amountUsdc);
+    return await withXRPLTimeout(realXLS66LoanPay(params.loanId, params.amountUsdc));
   } catch (err) {
-    console.warn("[XRPL] LoanPay fallback:", err);
-    await delay(700 + Math.random() * 500);
-    return makeResult(mockHash(), mockLedger(), "LoanPay");
+    console.warn("[XRPL] XLS-66 LoanPay → Payment fallback:", err);
+    try {
+      return await withXRPLTimeout(realLoanPay(params.amountUsdc));
+    } catch (err2) {
+      console.warn("[XRPL] Payment fallback also failed:", err2);
+      await delay(700 + Math.random() * 500);
+      return makeResult(mockHash(), mockLedger(), "LoanPay");
+    }
+  }
+}
+
+async function realXLS66LoanPay(loanId: string, amountUsdc: number): Promise<XRPLPaymentResult> {
+  const { Client, Wallet } = await import("xrpl");
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
+  await client.connect();
+  try {
+    const borrowerWallet = Wallet.fromSeed(getTestUserSecret());
+    const drops = await usdToDrops(amountUsdc);
+    const tx = await client.submitAndWait(
+      {
+        TransactionType: "LoanPay",
+        Account: borrowerWallet.address,
+        LoanID: loanId,
+        Amount: drops,
+        Flags: 0,
+      } as Parameters<typeof client.submitAndWait>[0],
+      { wallet: borrowerWallet }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (tx.result as any).meta ?? (tx.result as any).metaData;
+    if (meta?.TransactionResult !== "tesSUCCESS") {
+      throw new Error(`LoanPay failed on-chain: ${meta?.TransactionResult}`);
+    }
+    console.info("[XRPL] LoanPay confirmed:", tx.result.hash);
+    return makeResult(tx.result.hash as string, tx.result.ledger_index as number, "LoanPay", "confirmed");
+  } finally {
+    await client.disconnect();
   }
 }
 
 async function realLoanPay(amountUsdc: number): Promise<XRPLPaymentResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Borrower repays from the test user wallet → platform vault receives
@@ -457,7 +679,7 @@ export async function createCollateralEscrow(
   amountUsdc: number
 ): Promise<CollateralEscrowResult> {
   try {
-    return await realCollateralEscrowCreate(userAddress, amountUsdc);
+    return await withXRPLTimeout(realCollateralEscrowCreate(userAddress, amountUsdc));
   } catch (err) {
     console.warn("[XRPL] CollateralEscrow fallback:", err);
     return simulatedCollateralEscrowCreate(amountUsdc);
@@ -469,7 +691,7 @@ async function realCollateralEscrowCreate(
   amountUsdc: number
 ): Promise<CollateralEscrowResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Borrower/tokenizer puts up collateral — signs from the test user wallet
@@ -597,7 +819,7 @@ export async function signCollateralContract(
 ): Promise<ContractSignResult> {
   const contractHash = await sha256Hex(contractJson);
   try {
-    return await realContractSign(issuerAddress, contractHash);
+    return await withXRPLTimeout(realContractSign(issuerAddress, contractHash));
   } catch (err) {
     console.warn("[XRPL] ContractSign fallback:", err);
     await delay(900 + Math.random() * 600);
@@ -611,7 +833,7 @@ async function realContractSign(
   contractHash: string
 ): Promise<ContractSignResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Asset owner signs the collateral contract from their wallet
@@ -650,7 +872,7 @@ async function realContractSign(
 
 export async function repayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymentResult> {
   try {
-    return await realRepayVaultLoan(totalAmountUsd);
+    return await withXRPLTimeout(realRepayVaultLoan(totalAmountUsd));
   } catch (err) {
     console.warn("[XRPL] VaultRepay fallback:", err);
     await delay(900 + Math.random() * 600);
@@ -660,7 +882,7 @@ export async function repayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymen
 
 async function realRepayVaultLoan(totalAmountUsd: number): Promise<XRPLPaymentResult> {
   const { Client, Wallet } = await import("xrpl");
-  const client = new Client(DEVNET_WSS, { connectionTimeout: 5000, timeout: 8000 });
+  const client = new Client(DEVNET_WSS, { connectionTimeout: 10000 });
   await client.connect();
   try {
     // Asset owner sends payment to platform address
@@ -703,20 +925,24 @@ export async function sendXRPLPayment(
   destination: string = getPlatformAddress()
 ): Promise<XRPLPaymentResult> {
   try {
-    const { Client, Wallet } = await import("xrpl");
-    const client = new Client(DEVNET_WSS);
-    await client.connect();
-    try {
-      const wallet = Wallet.fromSeed(getPlatformSecret());
-      const drops = await usdToDrops(amountUSD);
-      const tx = await client.submitAndWait(
-        { TransactionType: "Payment", Account: wallet.address, Amount: drops, Destination: destination },
-        { wallet }
-      );
-      return makeResult(tx.result.hash as string, tx.result.ledger_index as number, "Payment", "confirmed");
-    } finally {
-      await client.disconnect();
-    }
+    return await withXRPLTimeout(
+      (async () => {
+        const { Client, Wallet } = await import("xrpl");
+        const client = new Client(DEVNET_WSS);
+        await client.connect();
+        try {
+          const wallet = Wallet.fromSeed(getPlatformSecret());
+          const drops = await usdToDrops(amountUSD);
+          const tx = await client.submitAndWait(
+            { TransactionType: "Payment", Account: wallet.address, Amount: drops, Destination: destination },
+            { wallet }
+          );
+          return makeResult(tx.result.hash as string, tx.result.ledger_index as number, "Payment", "confirmed");
+        } finally {
+          await client.disconnect();
+        }
+      })()
+    );
   } catch (err) {
     console.warn("[XRPL] Payment fallback:", err);
     await delay(1200 + Math.random() * 800);

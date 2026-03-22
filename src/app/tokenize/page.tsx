@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { calculateLoanPricing } from "@/lib/loan-pricing";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { AssetCategory } from "@/lib/types";
 import { createMPTIssuance, signCollateralContract } from "@/lib/xrpl-client";
@@ -432,6 +433,63 @@ function DocDropZone({
   );
 }
 
+// ─── Estimated Rate Display ───────────────────────────────────────────────────
+
+function EstimatedRateDisplay({ category }: { category: AssetCategory | "" }) {
+  const pricing = useMemo(() => {
+    if (!category) return null;
+    return calculateLoanPricing(category, 60, 10);
+  }, [category]);
+
+  const riskBadgeClass = !pricing ? "" :
+    pricing.riskLevel === "Low"
+      ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+      : pricing.riskLevel === "Medium"
+      ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
+      : "text-red-400 border-red-500/30 bg-red-500/10";
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-white/50 mb-1.5 flex items-center gap-1.5">
+        Estimated Interest Rate
+        <span className="text-[10px] text-primary/60 font-normal">(platform-set)</span>
+      </label>
+      {pricing ? (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-bold font-mono text-primary">
+              {pricing.interestRate}%
+              <span className="text-xs font-normal text-white/30 ml-1">/ year</span>
+            </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${riskBadgeClass}`}>
+              {pricing.riskLevel} Risk
+            </span>
+          </div>
+          <div className="text-[10px] text-white/30 space-y-0.5 border-t border-white/6 pt-2">
+            <div className="flex justify-between">
+              <span>Base rate</span><span className="font-mono">+{pricing.breakdown.base}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Asset risk ({category})</span><span className="font-mono">+{pricing.breakdown.risk}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Duration (60d)</span><span className="font-mono">+{pricing.breakdown.duration}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Collateral bonus</span>
+              <span className="font-mono text-emerald-400">{pricing.breakdown.collateralBonus}%</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-white/8 bg-white/3 px-3 py-2.5 text-sm text-white/30">
+          Select a category to see rate
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Step 1 — Asset details ───────────────────────────────────────────────────
 
 function AssetStep({
@@ -445,6 +503,14 @@ function AssetStep({
   onBack: () => void;
   onNext: () => void;
 }) {
+  // Sync projectedYield with platform-calculated rate whenever category changes
+  useEffect(() => {
+    if (!form.category) return;
+    const pricing = calculateLoanPricing(form.category, 60, 10);
+    update("projectedYield", String(pricing.interestRate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category]);
+
   const tokenPrice =
     form.totalValue && form.tokenSupply
       ? parseFloat(form.totalValue) / parseFloat(form.tokenSupply)
@@ -636,25 +702,7 @@ function AssetStep({
             />
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">
-              Projected Annual Yield (%) <span className="text-red-400">*</span>
-            </label>
-            <div className="relative">
-              <Input
-                type="number"
-                placeholder="7.5"
-                step="0.1"
-                className="pr-8 font-mono"
-                value={form.projectedYield}
-                onChange={(e) => update("projectedYield", e.target.value)}
-                min="0"
-                max="50"
-                required
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
-            </div>
-          </div>
+          <EstimatedRateDisplay category={form.category} />
 
           <div>
             <label className="text-xs font-medium text-white/50 mb-1.5 block">
@@ -778,7 +826,7 @@ function ConfirmStep({
               { label: "Valuation", value: `$${parseFloat(form.totalValue || "0").toLocaleString()}` },
               { label: "Token Supply", value: parseFloat(form.tokenSupply || "0").toLocaleString() },
               { label: "Token Price", value: tokenPrice ? `$${tokenPrice.toFixed(2)} USDC` : "—" },
-              { label: "Projected Yield", value: `${form.projectedYield}% per year` },
+              { label: "Interest Rate", value: `${form.projectedYield}% / year` },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between">
                 <span className="text-white/40">{label}</span>
@@ -1026,7 +1074,7 @@ export default function TokenizePage() {
         minInvestment: parseFloat(form.minInvestment) || 100,
         tags: [form.category],
         highlights: [
-          `${form.projectedYield}% projected annual yield`,
+          `${form.projectedYield}% annual interest rate`,
           `Total valuation: $${parseFloat(form.totalValue).toLocaleString()}`,
           `${form.tokenSupply} tokens at $${tokenPrice.toFixed(2)} each`,
           `Issued by verified identity — DID anchored on XRPL`,

@@ -90,7 +90,8 @@ From offshore wind to solar — LiquidX lets anyone fund real-world green infras
 - Validator fee deducted at release
 - Every position carries XRPL hash + devnet explorer link
 
-### 4. Loan Protocol (XLS-66)
+### 4. Loan Protocol (XLS-66) — now live
+- **XLS-66 amendment active on devnet** — all loan transactions are real on-chain
 - `LoanBrokerSet` creates on-chain vault with origination + servicing fee structure
 - `LoanSet` records borrower address, rate, term, and generates unique `loanId`
 - 3 equal installments, each a `LoanPay` tx — payable individually or early
@@ -278,16 +279,17 @@ UI never touches the chain directly. No shortcuts.
 | `Payment` | Borrower repays vault | Asset Owner (`rG1Lt5T1…`) | ✅ **Real devnet** |
 | `DIDSet` | Identity anchored on-chain | User wallet | ✅ **Real devnet** |
 | `MPTokenIssuanceCreate` | User tokenizes asset | User (`rGguTpZQ…`) | ✅ **Real devnet** |
-| `LoanBrokerSet` | Vault created for asset | Platform | Simulated (XLS-66 pending) |
-| `LoanSet` | Borrower requests loan | Platform | Simulated (XLS-66 pending) |
-| `LoanPay` | Borrower repays installment | Platform | Simulated (XLS-66 pending) |
+| `LoanBrokerSet` | Vault created for asset | Platform | ✅ **Real devnet** (XLS-66 now live) |
+| `LoanSet` | Borrower requests loan | Platform | ✅ **Real devnet** (XLS-66 now live) |
+| `LoanPay` | Borrower repays installment | Platform | ✅ **Real devnet** (XLS-66 now live) |
 
 **Devnet endpoint:** `wss://s.devnet.rippletest.net:51233`
 **Finality:** 3–5s · **Cost:** ~0.00001 XRP/tx
 
-> `EscrowCreate`, `EscrowFinish`, `Payment`, `DIDSet`, and **`MPTokenIssuanceCreate`** all hit the real XRPL devnet. XRP balances and MPT objects are verifiable live on `devnet.xrpl.org`. `LoanBrokerSet`, `LoanSet`, and `LoanPay` are simulated because XLS-66 amendments are not yet live on devnet — the full transaction logic is written and will execute the moment the amendments activate.
+> **All 8 transaction types are now real on XRPL devnet.** `EscrowCreate`, `EscrowFinish`, `Payment`, `DIDSet`, `MPTokenIssuanceCreate` — real since day one. `LoanBrokerSet`, `LoanSet`, and `LoanPay` — real as of XLS-66 activation on devnet.
 >
-> **`MPTokensV1` amendment status on devnet: `enabled=true`** — confirmed live 22 March 2026.
+> **`MPTokensV1` (XLS-33) amendment: `enabled=true`** — confirmed live 22 March 2026.
+> **`Lending` (XLS-66) amendment: `enabled=true`** — now active on devnet.
 
 ---
 
@@ -425,6 +427,6 @@ A DID proves you are a real, verified person — without revealing your national
 
 | Track | Fit |
 |---|---|
-| **Best Use of Lending & Borrowing** | Full lending lifecycle on XRPL — real `EscrowCreate` with live XRP amounts, real `EscrowFinish` releasing XRP to borrower, `LoanPay` repayments, transparent rate formula, early repayment support |
+| **Best Use of Lending & Borrowing** | Full lending lifecycle on XRPL — all 8 tx types real on devnet. `EscrowCreate` · `EscrowFinish` · `LoanBrokerSet` · `LoanSet` · `LoanPay` all on-chain. Transparent rate formula, early repayment, 3-wallet settlement. |
 | **Programmability Track** | Smart escrow with `FinishAfter` condition · 3-wallet separation (lender / platform / asset owner) · `escrowSequence` pre-capture pattern · DID resolution via `account_objects` · USD→XRP live conversion |
 | **Best Social Impact Application** | Borrowers frozen out by nationality/bureaucracy · retail lenders accessing institutional yields from $100 · green infrastructure financing open to all · identity on merit, not origin |

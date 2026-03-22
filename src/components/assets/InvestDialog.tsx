@@ -293,12 +293,14 @@ export function InvestDialog({ asset, open, onClose }: { asset: Asset; open: boo
                   {xrplResult.status === "confirmed" ? "✓ On-chain" : "✓ Simulated"}
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-lg px-3 py-2">
-                <code className="text-xs font-mono text-primary/80 truncate flex-1 min-w-0">{xrplResult.hash}</code>
-                <button onClick={() => { navigator.clipboard.writeText(xrplResult!.hash); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                  className="shrink-0 text-white/30 hover:text-white transition-colors">
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
+              <div className="bg-white/4 border border-white/8 rounded-lg px-3 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <code className="text-xs font-mono text-primary/80 break-all leading-relaxed">{xrplResult.hash}</code>
+                  <button onClick={() => { navigator.clipboard.writeText(xrplResult!.hash); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                    className="shrink-0 text-white/30 hover:text-white transition-colors mt-0.5">
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
               <a href={xrplResult.explorerUrl} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-primary hover:underline">
