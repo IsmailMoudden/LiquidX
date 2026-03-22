@@ -48,7 +48,7 @@ EscrowCreate
 
 ```
 Lender deposits
-  → createXRPLEscrow(amount, destinationTag)         EscrowCreate  (real testnet first)
+  → createXRPLEscrow(amount, destinationTag)         EscrowCreate  (real devnet)
   → store.invest(assetId, amount, xrpl)
     - LendingPosition: status = "locked"
     - stores xrplEscrowHash + xrplEscrowSequence
@@ -64,14 +64,14 @@ Validator approves
 Borrower requests loan
   → DID gate: attachDIDToUser() + requireVerifiedDID()
   → calculateLoanPricing(category, termDays, collateralPercent, xrpVolatility)
-  → xrplOriginateLoan(params)                        LoanSet       (simulated — XLS-66 pending)
+  → xrplOriginateLoan(params)                        LoanSet       (real devnet — XLS-66 now active)
   → store.originateLoan(assetId, params, xrpl)
     - BorrowingPosition: status = "active"
     - 3 LoanRepayment entries generated (equal instalments)
     - vault.activeLoansCount++, vault.totalOriginated += principal
 
 Borrower repays each instalment
-  → submitLoanPay(loanId, amount, principal, interest) LoanPay / Payment (real testnet first)
+  → submitLoanPay(loanId, amount, principal, interest) LoanPay (real devnet — XLS-66 now active)
   → store.repayLoan(loanId, repaymentId, xrpl)
     - LoanRepayment: status → "paid", xrplHash stored
     - loan.totalRepaid += amount

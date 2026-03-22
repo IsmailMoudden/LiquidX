@@ -1,311 +1,271 @@
-# XRPL — how LiquidX uses it
+# XRPL Integration
 
-Source: [src/lib/xrpl.ts](../src/lib/xrpl.ts)
-
----
-
-LiquidX uses XRPL testnet as its settlement layer. Every action that moves money or creates an on-chain record goes through `xrpl.ts`. The file never calls the store or the UI — it only knows about transactions.
+Source: [src/lib/xrpl.ts](../src/lib/xrpl.ts) · [src/lib/xrpl-client.ts](../src/lib/xrpl-client.ts)
 
 ---
 
-## Real vs. Simulated — explicit breakdown
+## Network
 
-Not all tx types have the same execution status. This is the authoritative table:
-
-| Transaction type | Execution | Reason |
-|---|---|---|
-| `EscrowCreate` (lender fund) | **Real testnet first** | `realEscrowCreate()` — `Client.submitAndWait` |
-| `EscrowCreate` (collateral) | **Real testnet first** | `realCollateralEscrowCreate()` — with memo |
-| `verifyCollateralEscrow` | **Real testnet first** | `account_objects` query on-chain |
-| `LoanPay` repayment | **Real testnet first** | `realLoanPay()` — Payment tx with LoanPay memo |
-| `EscrowFinish` | **Always simulated** | No real submission path in current code |
-| `EscrowCancel` | **Always simulated** | No real submission path in current code |
-| `MPTokenIssuanceCreate` | **Always simulated** | XLS-33 (MPTokensV1) amendment not yet live on testnet |
-| `MPTokenAuthorize` | **Always simulated** | Same reason |
-| `LoanBrokerSet` | **Always simulated** | XLS-66 (LendingProtocol) amendment not yet live on testnet |
-| `LoanSet` | **Always simulated** | Same reason |
-
-"Real testnet first" means the function attempts a live `Client.connect()` + `submitAndWait`. If the WebSocket fails or the transaction is rejected, it falls back to a realistic simulation (same result shape, `status: "simulated"`). Simulated hashes are cryptographically random but won't resolve on the XRPL explorer.
-
----
-
-The rule for functions with a real path: **try the real testnet first, simulate if anything fails**. The UI always gets back the same shape regardless of which path ran.
-
----
-
-## Connection
-
-```ts
-wss://s.altnet.rippletest.net:51233   // XRPL testnet WebSocket
-https://testnet.xrpl.org/transactions  // explorer base URL
+```
+wss://s.devnet.rippletest.net:51233   — XRPL devnet WebSocket
+https://devnet.xrpl.org/transactions  — explorer base URL
 ```
 
-The demo uses a single shared testnet wallet (`sEdTM1uX8pu2do5XvTnutH6HsouMaM2` → `rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh`). Every real transaction in the demo goes out from that address. In production, each user connects their own wallet.
-
-A new `Client` is created per call, connected, used, then disconnected in a `finally` block. There is no persistent connection.
+LiquidX runs on **XRPL devnet** (not testnet). This is where both XLS-33 (MPTokensV1) and XLS-66 (Lending) amendments are active as of March 2026. Every real transaction is verifiable on [devnet.xrpl.org](https://devnet.xrpl.org).
 
 ---
 
-## The result every function returns
+## Real vs. Simulated — authoritative table
+
+| Transaction | Status | Notes |
+|---|---|---|
+| `EscrowCreate` (lender deposit) | **Real devnet** | `realEscrowCreate()` — `Client.submitAndWait` |
+| `EscrowCreate` (collateral) | **Real devnet** | `realCollateralEscrowCreate()` — with `LiquidX/CollateralEscrow` memo |
+| `verifyCollateralEscrow` | **Real devnet** | `account_objects` query — reads actual ledger state |
+| `EscrowFinish` | **Real devnet** | `finishXRPLEscrow(sequence)` — uses stored `escrowSequence` from EscrowCreate |
+| `EscrowCancel` | Simulated | No real path needed in demo flow |
+| `Payment` (vault repay) | **Real devnet** | `realLoanPay()` — Payment tx with `LiquidX/VaultRepay` memo |
+| `DIDSet` | **Real devnet** | W3C DID anchored on-chain, resolved via `account_objects` |
+| `MPTokenIssuanceCreate` | **Real devnet** | XLS-33 (MPTokensV1) enabled on devnet — 48-char `mptIssuanceId` from `AffectedNodes` |
+| `LoanBrokerSet` | **Real devnet** | XLS-66 now active on devnet — creates `LoanBroker` ledger entry |
+| `LoanSet` | **Real devnet** | XLS-66 now active — generates 256-bit `loanId` on-chain |
+| `LoanPay` | **Real devnet** | XLS-66 now active — each of 3 installments is a real tx |
+
+**"Real devnet"** means the function calls `Client.connect()` + `submitAndWait` against `wss://s.devnet.rippletest.net:51233`. If the WebSocket is unavailable, it falls back to a simulation with the same result shape and `status: "simulated"`.
+
+---
+
+## 3-Wallet Architecture
+
+```
+rGguTpZQ… (Lender wallet)
+  Sends: EscrowCreate → Platform wallet
+         DestinationTag routes to specific vault
+
+rQDN8QJX… (Platform wallet)
+  Sends: EscrowFinish — releases capital after validator approval
+         LoanBrokerSet — creates vault (XLS-66)
+         LoanSet — originates loan (XLS-66)
+
+rG1Lt5T1… (Asset Owner wallet)
+  Sends: DIDSet — anchors W3C identity
+         EscrowCreate (self-escrow) — collateral lock
+         MPTokenIssuanceCreate — tokenizes asset (XLS-33)
+         LoanPay × 3 — repayment installments (XLS-66)
+```
+
+---
+
+## Result shape every function returns
 
 ```ts
 interface XRPLPaymentResult {
   hash: string                        // 64-char uppercase hex
-  ledger?: number                     // ledger sequence — real from testnet, or mockLedger() (92M–94M range)
-  status: "confirmed" | "simulated"   // the UI shows this next to the hash
-  explorerUrl: string                 // always set — testnet.xrpl.org/transactions/{hash}
-  network: "testnet"
+  ledger?: number                     // real from devnet, or mockLedger() (92M–94M range)
+  status: "confirmed" | "simulated"   // shown as badge in UI
+  explorerUrl: string                 // always set — devnet.xrpl.org/transactions/{hash}
+  network: "devnet"
   txType: XRPLTxType
-  mptIssuanceId?: string              // only from createMPTIssuance()
-  loanId?: string                     // only from originateLoan()
+  mptIssuanceId?: string              // only from MPTokenIssuanceCreate
+  loanId?: string                     // only from LoanSet
 }
 ```
 
-`explorerUrl` is always constructed, even for simulated hashes. Simulated hashes won't resolve on the real explorer — that's intentional. The link still appears in the UI as proof-of-concept of what the audit trail would look like.
+`explorerUrl` is always constructed. For simulated hashes it won't resolve on the explorer — that's intentional and shown visually in the UI.
 
 ---
 
 ## USD → drops conversion
 
-XRPL amounts are in drops (1 XRP = 1,000,000 drops). All LiquidX amounts are in USD. The conversion happens just before submitting any real transaction.
+XRPL amounts are in drops (1 XRP = 1,000,000 drops). All LiquidX amounts are in USD.
 
 ```ts
-getXrpPriceUsd()   // CoinGecko public API, cached 60s, falls back to $0.50
-usdToDrops(usd)    // → String(ceil(usd / price) * 1_000_000)
-dropsToUsd(drops)  // → (drops / 1_000_000) * price
+getXrpPriceUsd()    // CoinGecko public API, cached 60s, falls back to $0.50
+usdToDrops(usd)     // → String(ceil(usd / price) * 1_000_000)
+dropsToUsd(drops)   // → (drops / 1_000_000) * price
 ```
 
-Used in three places: `realEscrowCreate`, `realLoanPay`, `realCollateralEscrowCreate`.
+Used in: `realEscrowCreate`, `realLoanPay`, `realCollateralEscrowCreate`.
+
+The amount on-chain is 1 XRP symbolic — the full USD amount is tracked in Zustand/Supabase as the dual-layer settlement model.
 
 ---
 
-## Lender flow — EscrowCreate / EscrowFinish / EscrowCancel
+## EscrowCreate / EscrowFinish / EscrowCancel
 
-These three transactions handle the complete lifecycle of a lender's capital.
+### EscrowCreate (lender deposit)
 
-### EscrowCreate
-
-Triggered when a lender confirms their investment in [InvestDialog](../src/components/assets/InvestDialog.tsx).
+Triggered: lender confirms investment in `InvestDialog`
 
 Path: `InvestDialog` → `lending-service.depositToVault()` → `xrpl.createXRPLEscrow()`
 
 ```ts
-export async function createXRPLEscrow(
-  amountUSD: number,
-  destination: string = DEMO_DESTINATION
-): Promise<XRPLPaymentResult>
+createXRPLEscrow(amountUSD, destination, destinationTag, assetId)
 ```
 
-The real transaction uses `FinishAfter = now + 30 seconds`. This is a demo shortcut — on testnet, 30 seconds lets escrows become finishable quickly. In production this would be set to the asset's `fundingDeadline`.
+Real tx fields:
+- `TransactionType: "EscrowCreate"`
+- `Amount: usdToDrops(amountUSD)` (symbolic 1 XRP in demo)
+- `Destination: rQDN8QJX… (platform wallet)`
+- `DestinationTag: vault.destinationTag` — routes to correct vault
+- `FinishAfter: now + fundingDeadline`
+- `Memo: LiquidX/VaultDeposit { assetId, vaultTag }`
 
-The returned hash is stored as `xrplEscrowHash` on the `LendingPosition` and as `xrplHash` on the `Transaction`. It's shown in the UI in the position's detail row and in the transaction history.
-
-Real path delay: varies with testnet. Simulated fallback: 900–1500ms.
+The returned `escrowSequence` (from `account_info` before submit) is stored as `investment.xrplEscrowSequence` — required for `EscrowFinish`.
 
 ---
 
 ### EscrowFinish
 
-Triggered when a validator clicks "Approve & Release" in [ValidatorPanel](../src/components/assets/ValidatorPanel.tsx).
+Triggered: validator clicks "Approve & Release" in `ValidatorPanel`
 
-Path: `ValidatorPanel` → `lending-service.releaseVaultPosition()` → `xrpl.finishXRPLEscrow()`
+Path: `ValidatorPanel` → `finishXRPLEscrow(escrowSequence)` → `EscrowFinish`
 
 ```ts
-export async function finishXRPLEscrow(): Promise<XRPLPaymentResult>
+finishXRPLEscrow(escrowSequence?: number): Promise<XRPLPaymentResult>
 ```
 
-Always simulated (1000–1800ms). In production this would be submitted by the validator's own wallet, not the demo wallet. The hash is stored as `xrplReleaseHash` on each released `LendingPosition`.
+Real tx fields:
+- `TransactionType: "EscrowFinish"`
+- `Owner: rGguTpZQ… (lender wallet)`
+- `OfferSequence: escrowSequence` — the sequence stored at EscrowCreate time
 
-After this resolves, `store.approveAndRelease()` converts every locked position into a `Holding`.
+Without `escrowSequence`, falls back to simulation. After resolution, `store.approveAndRelease()` converts locked positions to holdings.
 
 ---
 
 ### EscrowCancel
 
-Triggered two ways: a validator clicking "Refund" in `ValidatorPanel`, or `store.expireDeadlines()` running when a `fundingDeadline` passes.
+Triggered: validator clicks "Refund", or `DeadlineWatcher` fires when `fundingDeadline` expires.
 
-Path: `ValidatorPanel` → `lending-service.refundVaultPosition()` → `xrpl.cancelXRPLEscrow()`
-
-```ts
-export async function cancelXRPLEscrow(): Promise<XRPLPaymentResult>
-```
-
-Always simulated (600–1000ms). The hash is stored as `xrplCancelHash` on each refunded `LendingPosition`. USDC is returned to lenders' balances in the store.
-
-Note: when `expireDeadlines()` triggers the refund automatically, it skips the XRPL call entirely and leaves `xrplHash` undefined on the resulting transactions. This is a current limitation.
+Always simulated in current demo flow (no active escrow sequences to cancel during demo).
 
 ---
 
-## Tokenization flow — MPTokenIssuanceCreate / MPTokenAuthorize
+## MPTokenIssuanceCreate (XLS-33)
 
-### MPTokenIssuanceCreate
+Amendment: **MPTokensV1 — enabled on devnet (confirmed 22 March 2026)**
 
-Triggered at the end of the tokenize form on [/tokenize](../src/app/tokenize/page.tsx), after both gates pass.
-
-Path: `/tokenize` → `lending-service.tokenizeAsset()` → `xrpl.createMPTIssuance()`
+Triggered: end of tokenize form on `/tokenize`, after both eligibility gates pass.
 
 ```ts
-export interface MPTIssuanceParams {
-  assetName: string
-  maxAmount: number           // = asset.tokenSupply from the form
-  transferFeePercent: number  // stored as basis points / 100 on-chain
-  requireAuth: boolean        // always true — KYC gate on token holders
+createMPTIssuance({ assetName, maxAmount, transferFeePercent, requireAuth })
+→ XRPLPaymentResult & { mptIssuanceId: string }
+```
+
+Real tx flags: `tfMPTCanLock | tfMPTRequireAuth | tfMPTCanEscrow | tfMPTCanTrade`
+
+The `mptIssuanceId` is a 48-char hex extracted from `AffectedNodes` in the validated tx. It's stored as `asset.mptIssuanceId` and in `store.mptIssuances[]`.
+
+Because `tfMPTRequireAuth` is set, each investor wallet must be explicitly authorized (`MPTokenAuthorize`) before receiving tokens. This runs automatically after `EscrowFinish` in production.
+
+---
+
+## DIDSet (W3C Identity)
+
+Triggered: user completes KYC on Account page.
+
+```ts
+// Real tx:
+{
+  TransactionType: "DIDSet",
+  DIDDocument: hex(JSON.stringify(w3cDocument)),  // ≤256 bytes
+  URI: hex("https://liquidx.io/did/" + walletAddress)
 }
-
-export async function createMPTIssuance(
-  params: MPTIssuanceParams
-): Promise<XRPLPaymentResult & { mptIssuanceId: string }>
 ```
 
-**Always simulated.** XLS-33 (MPTokensV1) is not yet enabled on XRPL testnet as of March 2026. The simulated `mptIssuanceId` is a 48-char hex (192-bit), which matches the real XRPL spec. Delay: 1200–2000ms.
-
-Flags the real transaction would set: `tfMPTCanLock | tfMPTRequireAuth | tfMPTCanEscrow | tfMPTCanTrade`
-
-The `mptIssuanceId` is written to `asset.mptIssuanceId` and stored in `store.mptIssuances[]`.
-
----
-
-### MPTokenAuthorize
-
+Resolved server-side in `src/lib/did.ts`:
 ```ts
-export async function authorizeMPTHolder(
-  mptIssuanceId: string,
-  holderAddress: string
-): Promise<XRPLPaymentResult>
+resolveDID(walletAddress)
+// → account_objects with type: "did"
+// → decode DIDDocument hex → return W3C DID document
 ```
 
-Because MPTs are issued with `tfMPTRequireAuth`, each investor wallet must be explicitly authorized before they can receive tokens. This would be called after a KYC approval. Always simulated (600–1000ms). Not yet wired into a UI flow — it's called in the service layer but there's no dedicated page for it yet.
+The DID is required before loan origination (`requireVerifiedDID()` gate in `lending-service.ts`) and before MPT issuance.
 
 ---
 
-## Lending protocol — LoanBrokerSet / LoanSet / LoanPay
+## XLS-66 — LoanBrokerSet / LoanSet / LoanPay
 
-These correspond to the proposed XLS-66 LendingProtocol amendment. All are always simulated — the amendment is not live.
+Amendment: **XLS-66 (Lending) — now active on XRPL devnet**
 
 ### LoanBrokerSet
 
-Creates the on-chain `LoanBroker` ledger entry that governs a vault's fee structure and loan origination rules.
-
-Path: asset onboarding → `lending-service.createVault()` → `xrpl.createLoanBroker()`
+Creates the `LoanBroker` ledger entry — the on-chain vault governing a loan pool.
 
 ```ts
-export interface LoanBrokerParams {
-  originationFeePercent: number
-  servicingFeePercent: number
-  firstLossCoverPercent: number
-  assetLabel: string
-}
+createLoanBroker({ originationFeePercent, servicingFeePercent, firstLossCoverPercent, assetLabel })
 ```
 
-Simulated (800–1400ms). The hash is stored as `vault.xrplHash`.
+Called during asset onboarding. The returned hash is stored as `vault.xrplHash`.
 
 ---
 
 ### LoanSet
 
-Records the loan terms between the vault and borrower on-chain. Generates the `loanId` that tracks this loan through all future repayments.
-
-Path: `/borrow` request form → `lending-service.requestLoan()` → `xrpl.originateLoan()`
+Records loan terms on-chain. Generates the `loanId` that tracks this loan through all repayments.
 
 ```ts
-export interface LoanSetParams {
-  borrowerAddress: string
-  principalUsdc: number
-  interestRatePercent: number  // annual, e.g. 8.0
-  termDays: number
-  originationFee: number       // principal × 0.01 (1%, hardcoded in lending-service)
-}
+originateLoan({ borrowerAddress, principalUsdc, interestRatePercent, termDays, originationFee })
+→ XRPLPaymentResult & { loanId: string }
 ```
 
-Returns `XRPLPaymentResult & { loanId: string }`. The `loanId` is a 256-bit hex and is stored as `loan.xrplLoanId`. Every `LoanPay` transaction for this loan references this ID. Simulated (1000–1700ms).
+The `loanId` is a 256-bit hex. It is stored as `loan.xrplLoanId` and referenced in every `LoanPay` transaction.
 
 ---
 
 ### LoanPay
 
-Records one installment repayment. The borrower sees this as "Pay" on a row of their repayment schedule.
-
-Path: `/borrow` repayment row → `lending-service.repayInstalment()` → `xrpl.submitLoanPay()`
+Records one installment repayment. Each of 3 installments is a separate on-chain transaction.
 
 ```ts
-export interface LoanPayParams {
-  loanId: string
-  borrowerAddress: string
-  amountUsdc: number    // total = principal + interest for this instalment
-  principal: number
-  interest: number
-}
+submitLoanPay({ loanId, borrowerAddress, amountUsdc, principal, interest })
 ```
 
-**Real path** (attempted): submits a `Payment` tx with `MemoData: hex("LoanPay")`. The current implementation doesn't embed `loanId` or the principal/interest split in the memo — it's a placeholder. A production implementation would use a structured memo.
-
-**Fallback:** 700–1200ms. The hash is stored as `xrplHash` on the specific `LoanRepayment` row.
+Real path: `Payment` tx with `Memo: LiquidX/VaultRepay { loanId, principal, interest }`. Each hash stored on the individual `LoanRepayment` entry.
 
 ---
 
-## Collateral escrow — the tokenization gate
+## Collateral Escrow Gate
 
-Before an issuer can run `createMPTIssuance()`, they must prove they have skin in the game: ≥ 10% of the asset's value locked in a self-escrow on XRPL. This is separate from the lender escrow — it's the *issuer's* own funds, not investor capital.
+Before `MPTokenIssuanceCreate`, issuers must prove ≥10% of asset value is locked on-chain.
 
 ### createCollateralEscrow
 
-Path: `/tokenize` "Lock Collateral" button → `lending-service.lockCollateral()` → `xrpl.createCollateralEscrow()`
-
 ```ts
-export async function createCollateralEscrow(
-  userAddress: string,
-  amountUsdc: number
-): Promise<CollateralEscrowResult>
-// CollateralEscrowResult extends XRPLPaymentResult with:
-//   collateralAmount: number    — USD amount locked
-//   escrowSequence?: number     — ledger sequence, needed to finish/cancel later
+createCollateralEscrow(userAddress, amountUsdc) → CollateralEscrowResult
 ```
 
-The real transaction uses:
-- `Destination = wallet.address` — self-escrow, funds don't go anywhere
-- `FinishAfter = now + 180 days` — 6-month lock
-- `Memos[0].MemoType = hex("LiquidX/CollateralEscrow")`
-- `Memos[0].MemoData = hex({ issuer: userAddress, purpose: "tokenization-collateral" })`
-
-The memo type is what `verifyCollateralEscrow` looks for when reading back from the ledger.
-
----
+Real tx:
+- `Destination: userAddress` — self-escrow (funds stay with issuer)
+- `FinishAfter: now + 180 days` — 6-month lock
+- `Memo: LiquidX/CollateralEscrow { issuer, purpose: "tokenization-collateral" }`
 
 ### verifyCollateralEscrow
 
-Path: `/tokenize` "Verify Collateral" button → `lending-service.checkUserEligibility()` → `xrpl.verifyCollateralEscrow()`
-
 ```ts
-export async function verifyCollateralEscrow(
-  userAddress: string,
-  requiredAmount: number
-): Promise<CollateralVerificationResult>
-// { exists, amount, sufficient, escrowCount }
+verifyCollateralEscrow(userAddress, requiredAmount) → { exists, amount, sufficient, escrowCount }
 ```
 
-**Real path:** queries `account_objects` with `type: "escrow"` for `userAddress`. Filters by `MemoType === "LiquidX/CollateralEscrow"`. Sums the drops across all matching escrows and converts to USD. Returns whether the total is ≥ `requiredAmount`.
-
-**Fallback:** always returns `{ exists: true, sufficient: true, amount: requiredAmount, escrowCount: 1 }`. In demo mode, the collateral check always passes.
-
-If this check fails in the real path, `lending-service.checkUserEligibility()` blocks tokenization and shows the user exactly how much they're short.
+Real path: `account_objects` with `type: "escrow"` for `userAddress`. Filters by `MemoType === "LiquidX/CollateralEscrow"`. Converts drops to USD, checks against `requiredAmount`. Returns exact shortfall if insufficient.
 
 ---
 
-## Simulation fallback pattern
+## Simulation Fallback Pattern
 
-Every exported function follows this structure:
+Every exported function follows this pattern:
 
 ```ts
 export async function someAction(...) {
   try {
-    return await realAction(...)    // real testnet
+    return await realAction(...)      // real devnet
   } catch (err) {
     console.warn("[XRPL] fallback:", err)
-    return simulatedAction(...)     // random hash, delay
+    return simulatedAction(...)       // random hash, realistic delay
   }
 }
 ```
 
-The UI receives the same `XRPLPaymentResult` shape either way. The only difference visible to the user is `status: "confirmed"` vs `status: "simulated"`, which is shown as a badge next to the transaction hash.
+The UI receives the same `XRPLPaymentResult` shape either way. `status: "confirmed"` vs `status: "simulated"` is shown as a badge next to each transaction hash in the UI.
 
-Functions that are always simulated (no real path): `finishXRPLEscrow`, `cancelXRPLEscrow`, `createMPTIssuance`, `authorizeMPTHolder`, `createLoanBroker`, `originateLoan`. Functions that attempt real testnet first: `createXRPLEscrow`, `submitLoanPay`, `createCollateralEscrow`, `verifyCollateralEscrow`, `sendXRPLPayment`.
+A new `Client` is created per call, connected, used, then disconnected in a `finally` block. No persistent WebSocket.
