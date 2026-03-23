@@ -18,29 +18,19 @@ function getPlatformAddress(): string {
   return process.env.XRPL_PLATFORM_ADDRESS ?? "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh";
 }
 
-// Lender (test user) wallet — devnet only. Signs EscrowCreate.
-const TEST_USER_SECRET = "sEdVqfegyLg1vrvfSjdBgKmEjraxQo9";
-const TEST_USER_ADDRESS = "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd";
+// ─── Demo wallets (XRPL devnet only) ─────────────────────────────────────────
+// These are throwaway devnet wallets with no real-world value.
+// Override via env vars in production: XRPL_TEST_USER_SECRET, XRPL_ASSET_OWNER_SECRET.
+// Devnet XRP has zero monetary value — faucet: https://faucet.devnet.rippletest.net
+const TEST_USER_SECRET  = process.env.XRPL_TEST_USER_SECRET  ?? "sEdVqfegyLg1vrvfSjdBgKmEjraxQo9";
+const TEST_USER_ADDRESS = process.env.XRPL_TEST_USER_ADDRESS  ?? "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd";
+const ASSET_OWNER_SECRET  = process.env.XRPL_ASSET_OWNER_SECRET  ?? "sEdSoVF85ULZy298HmRFLHa1oJZp2nv";
+const ASSET_OWNER_ADDRESS = process.env.XRPL_ASSET_OWNER_ADDRESS ?? "rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x";
 
-// Asset owner / borrower wallet — receives loan funds via EscrowFinish.
-const ASSET_OWNER_SECRET = "sEdSoVF85ULZy298HmRFLHa1oJZp2nv";
-const ASSET_OWNER_ADDRESS = "rG1Lt5T1j5BvKkSKX8yKMkhSVMop7yDF6x";
-
-function getTestUserSecret(): string {
-  return process.env.XRPL_TEST_USER_SECRET ?? TEST_USER_SECRET;
-}
-
-function getTestUserAddress(): string {
-  return TEST_USER_ADDRESS;
-}
-
-function getAssetOwnerSecret(): string {
-  return process.env.XRPL_ASSET_OWNER_SECRET ?? ASSET_OWNER_SECRET;
-}
-
-function getAssetOwnerAddress(): string {
-  return process.env.XRPL_ASSET_OWNER_ADDRESS ?? ASSET_OWNER_ADDRESS;
-}
+function getTestUserSecret(): string   { return TEST_USER_SECRET; }
+function getTestUserAddress(): string   { return TEST_USER_ADDRESS; }
+function getAssetOwnerSecret(): string  { return ASSET_OWNER_SECRET; }
+function getAssetOwnerAddress(): string { return ASSET_OWNER_ADDRESS; }
 
 // ─── Result types ─────────────────────────────────────────────────────────────
 
