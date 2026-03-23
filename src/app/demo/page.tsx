@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, CheckCircle2, AlertCircle, Zap, Wallet, FlaskConical, Github, ArrowRight } from "lucide-react";
+import { ExternalLink, CheckCircle2, AlertCircle, Zap, Wallet, FlaskConical, Github, ArrowRight, Presentation } from "lucide-react";
 import Link from "next/link";
 
 const REAL_TXS = [
@@ -42,9 +42,17 @@ export default function DemoPage() {
             <FlaskConical className="h-3 w-3" /> Demo Project
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">About this project</h1>
-          <p className="text-white/50 text-base leading-relaxed">
+          <p className="text-white/50 text-base leading-relaxed mb-6">
             LiquidX is a hackathon prototype built for XRPL Commons (March 2026). The transactions are real — confirmed on XRPL devnet. The wallet balances and portfolio are seeded for demo purposes.
           </p>
+          <Link
+            href="/deck"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Presentation className="h-4 w-4" />
+            View Pitch Deck
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
 
@@ -138,6 +146,13 @@ export default function DemoPage() {
             <Github className="h-4 w-4" />
             View source on GitHub
           </a>
+          <Link
+            href="/deck"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-3 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Presentation className="h-4 w-4" />
+            Pitch Deck
+          </Link>
           <Link
             href="/lend"
             className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-black hover:bg-primary/90 transition-colors"
