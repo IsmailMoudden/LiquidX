@@ -44,7 +44,6 @@ const SLIDES = [
   "identity",
   "tech-deep",
   "roadmap",
-  "real-vs-sim",
 ] as const;
 
 type SlideId = (typeof SLIDES)[number];
@@ -60,7 +59,6 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   identity: "Identity",
   "tech-deep": "Tech Deep Dive",
   roadmap: "Roadmap",
-  "real-vs-sim": "Real vs Sim",
 };
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
@@ -1076,93 +1074,6 @@ function SlideIdentity() {
   );
 }
 
-// ─── Appendix: Escrow Flow ────────────────────────────────────────────────────
-
-function SlideRealVsSim() {
-  const table = [
-    { step: "Collateral escrow (lock)", status: "real", detail: "EscrowCreate réel sur devnet" },
-    { step: "Vérification collateral", status: "real", detail: "account_objects XRPL réel" },
-    { step: "LoanSet (origination)", status: "real", detail: "XLS-66 amendment actif sur devnet" },
-    { step: "LoanPay (remboursement)", status: "real", detail: "XLS-66 actif — LoanPay réel sur devnet" },
-    { step: "Scoring / taux", status: "sim", detail: "In-app via loan-pricing.ts" },
-  ];
-
-  const keyData = [
-    { key: "Test wallet (user)", val: "rGguTpZQUhDyRCC2yCa7mDHSjuZpVCTKdd", color: "#00e5cc" },
-    { key: "Platform wallet", val: "rQDN8QJX… (hardcodé dans xrpl.ts)", color: "#0099ff" },
-    { key: "Collateral requis", val: "10% de la valeur de l'asset (COLLATERAL_RATIO = 0.1)", color: "#ffaa00" },
-    { key: "Schedule", val: "3 mensualités égales, calculées dans le store", color: "#a855f7" },
-    { key: "Persistence", val: "Zustand (liquidx-portfolio-v4) + sync Supabase", color: "#22c55e" },
-    { key: "XRPL network", val: "wss://s.devnet.rippletest.net:51233", color: "#ffffff" },
-  ];
-
-  return (
-    <div className="h-full flex flex-col px-10 py-8 gap-5">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <Tag>Appendix A4</Tag>
-          <h2 className="text-4xl font-black text-white leading-tight">
-            Réel vs Simulé · Données clés
-          </h2>
-        </div>
-        <span className="text-[11px] font-mono text-white/20">11 / 11</span>
-      </div>
-
-      <div className="flex-1 grid grid-cols-2 gap-4">
-        {/* Real vs sim table */}
-        <div
-          className="rounded-2xl p-5 flex flex-col gap-3"
-          style={{ background: "rgba(0,229,204,0.04)", border: "1px solid rgba(0,229,204,0.15)" }}
-        >
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Ce qui est réel vs simulé</p>
-          <div className="flex flex-col gap-2">
-            {/* header */}
-            <div className="grid grid-cols-3 gap-2 pb-2 border-b border-white/6">
-              <span className="text-[9px] text-white/25 uppercase tracking-wide">Étape</span>
-              <span className="text-[9px] text-white/25 uppercase tracking-wide">Status</span>
-              <span className="text-[9px] text-white/25 uppercase tracking-wide">Détail</span>
-            </div>
-            {table.map((r) => (
-              <div key={r.step} className="grid grid-cols-3 gap-2 items-start">
-                <span className="text-[10px] text-white/60 leading-tight">{r.step}</span>
-                <span
-                  className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded self-start flex items-center gap-1"
-                  style={
-                    r.status === "real"
-                      ? { color: "#22c55e", background: "#22c55e15", border: "1px solid #22c55e25" }
-                      : { color: "#ffaa00", background: "#ffaa0015", border: "1px solid #ffaa0025" }
-                  }
-                >
-                  {r.status === "real"
-                    ? <><CheckCircle2 className="h-3 w-3" /> Réel</>
-                    : <><Clock className="h-3 w-3" /> Simulé</>}
-                </span>
-                <span className="text-[9px] text-white/35 leading-tight">{r.detail}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Key data */}
-        <div
-          className="rounded-2xl p-5 flex flex-col gap-3"
-          style={{ background: "rgba(0,153,255,0.04)", border: "1px solid rgba(0,153,255,0.15)" }}
-        >
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Données clés</p>
-          <div className="flex flex-col gap-3">
-            {keyData.map((d) => (
-              <div key={d.key} className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-white/30 uppercase tracking-wide">{d.key}</span>
-                <code className="text-[10px] font-mono" style={{ color: d.color }}>{d.val}</code>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Slide: Tech Deep Dive ────────────────────────────────────────────────────
 
 function SlideTechDeep() {
@@ -1412,7 +1323,6 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
   identity: SlideIdentity,
   "tech-deep": SlideTechDeep,
   roadmap: SlideRoadmap,
-  "real-vs-sim": SlideRealVsSim,
 };
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
