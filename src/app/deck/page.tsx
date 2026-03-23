@@ -43,6 +43,8 @@ const SLIDES = [
   "xrpl-impl",
   "vault",
   "identity",
+  "tech-deep",
+  "roadmap",
   "appendix",
   "real-vs-sim",
 ] as const;
@@ -59,6 +61,8 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   "xrpl-impl": "On-chain Flow",
   vault: "Adoption",
   identity: "Identity",
+  "tech-deep": "Tech Deep Dive",
+  roadmap: "Roadmap",
   appendix: "Appendix",
   "real-vs-sim": "Real vs Sim",
 };
@@ -191,6 +195,17 @@ function SlideCover() {
             </span>
           ))}
         </div>
+
+        {/* CTA to live app */}
+        <a
+          href="/lend"
+          className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold transition-all hover:opacity-90"
+          style={{ background: "linear-gradient(135deg,#00e5cc,#0099ff)", color: "#000" }}
+        >
+          <Zap className="h-4 w-4" />
+          Try the Live App
+          <ArrowRight className="h-4 w-4" />
+        </a>
       </div>
     </div>
   );
@@ -1356,6 +1371,242 @@ function SlideRealVsSim() {
   );
 }
 
+// ─── Slide: Tech Deep Dive ────────────────────────────────────────────────────
+
+function SlideTechDeep() {
+  return (
+    <div className="h-full flex flex-col px-10 py-8 gap-5">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Tech Deep Dive</Tag>
+          <h2 className="text-5xl font-black text-white leading-tight">
+            How it actually works.
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">10 / 13</span>
+      </div>
+
+      <div className="flex-1 grid grid-cols-2 gap-4">
+
+        {/* Loan pricing formula */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "rgba(0,229,204,0.05)", border: "1px solid rgba(0,229,204,0.2)" }}>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-[#00e5cc]" />
+            <p className="text-xs font-black text-[#00e5cc] uppercase tracking-widest">Loan Pricing Formula</p>
+          </div>
+          <div className="rounded-xl bg-black/40 border border-white/6 px-4 py-3 font-mono text-sm text-white/80">
+            rate = Base + Risk + Duration − Collateral ± XRP
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {[
+              { label: "Base rate", val: "5%", color: "#ffffff" },
+              { label: "Asset risk (real-estate)", val: "+2%", color: "#00e5cc" },
+              { label: "Asset risk (art)", val: "+7%", color: "#a855f7" },
+              { label: "Duration < 30d", val: "+1%", color: "#ffaa00" },
+              { label: "Duration 30–90d", val: "+2%", color: "#ffaa00" },
+              { label: "Collateral bonus /10%", val: "−1% (cap −5%)", color: "#22c55e" },
+              { label: "XRP high volatility", val: "+1%", color: "#ff4d4d" },
+            ].map((r) => (
+              <div key={r.label} className="flex justify-between items-center">
+                <span className="text-white/40">{r.label}</span>
+                <code className="font-mono font-bold" style={{ color: r.color }}>{r.val}</code>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto rounded-lg px-3 py-2" style={{ background: "rgba(0,229,204,0.08)", border: "1px solid rgba(0,229,204,0.2)" }}>
+            <p className="text-[10px] text-[#00e5cc]/70 font-mono">e.g. real-estate · 60d · 10% collateral → <strong>8% APR</strong></p>
+          </div>
+        </div>
+
+        {/* Escrow finality */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "rgba(0,153,255,0.05)", border: "1px solid rgba(0,153,255,0.2)" }}>
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-[#0099ff]" />
+            <p className="text-xs font-black text-[#0099ff] uppercase tracking-widest">Escrow Mechanics</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { step: "1", label: "EscrowCreate", actor: "Lender", detail: "XRP locked · FinishAfter condition · DestinationTag routes to vault · escrowSequence stored in DB", color: "#00e5cc" },
+              { step: "2", label: "Validator sign-off", actor: "Validator", detail: "Reviews docs on-chain (DID + SHA-256 hash). Signs approval tx. Charges 0.75–1% fee.", color: "#ffaa00" },
+              { step: "3", label: "EscrowFinish", actor: "Platform", detail: "OfferSequence = stored escrowSequence. XRP released to borrower. MPT holdings minted.", color: "#0099ff" },
+              { step: "4", label: "LoanPay × 3", actor: "Borrower", detail: "3 equal instalments. Each a real Payment tx with Memo:LiquidX/LoanPay. Explorer link per instalment.", color: "#a855f7" },
+            ].map((s) => (
+              <div key={s.step} className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black border" style={{ borderColor: s.color, color: s.color, background: `${s.color}12` }}>{s.step}</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <code className="text-[11px] font-mono font-bold" style={{ color: s.color }}>{s.label}</code>
+                    <span className="text-[9px] text-white/30">← {s.actor}</span>
+                  </div>
+                  <p className="text-[10px] text-white/40 leading-relaxed">{s.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* MPT (XLS-33) structure */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)" }}>
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-[#a855f7]" />
+            <p className="text-xs font-black text-[#a855f7] uppercase tracking-widest">MPT Token (XLS-33) — Live on devnet</p>
+          </div>
+          <div className="font-mono text-[10px] space-y-1 text-white/50 bg-black/40 rounded-xl p-3 border border-white/6">
+            <p><span className="text-[#a855f7]">TransactionType</span>: MPTokenIssuanceCreate</p>
+            <p><span className="text-[#a855f7]">Account</span>: rGguTpZQ… <span className="text-white/25">(issuer = asset owner)</span></p>
+            <p><span className="text-[#a855f7]">Flags</span>: canTransfer | canTrade | canEscrow</p>
+            <p><span className="text-[#a855f7]">MaximumAmount</span>: tokenSupply (e.g. 10000)</p>
+            <p><span className="text-[#a855f7]">TransferFee</span>: 500 <span className="text-white/25">(= 0.5% per transfer)</span></p>
+            <p><span className="text-[#a855f7]">Metadata</span>: {"{"} name, platform: &quot;LiquidX&quot; {"}"} → hex</p>
+            <p><span className="text-[#22c55e]">→ mptIssuanceId</span>: 48-char from AffectedNodes</p>
+          </div>
+          <p className="text-[10px] text-white/30 leading-relaxed">Each secondary market transfer auto-charges the platform 0.5% on-chain — no off-chain logic needed.</p>
+        </div>
+
+        {/* Identity + SHA-256 doc proof */}
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "rgba(255,170,0,0.05)", border: "1px solid rgba(255,170,0,0.2)" }}>
+          <div className="flex items-center gap-2">
+            <Fingerprint className="h-4 w-4 text-[#ffaa00]" />
+            <p className="text-xs font-black text-[#ffaa00] uppercase tracking-widest">Document Proof — In-browser SHA-256</p>
+          </div>
+          <div className="space-y-2 text-xs text-white/60 leading-relaxed">
+            <p>When a borrower uploads a title deed or ownership doc, the browser runs <code className="text-[#ffaa00] font-mono">crypto.subtle.digest(&apos;SHA-256&apos;, file)</code> — the file never leaves the device.</p>
+            <p>The resulting 64-char hex hash is anchored to the borrower&apos;s XRP DID via a <code className="text-[#00e5cc] font-mono">Payment</code> tx with Memo — immutable, timestamped, public.</p>
+          </div>
+          <div className="rounded-lg bg-black/40 border border-white/6 px-3 py-2 font-mono text-[9px] text-white/35 break-all">
+            SHA256: A3F2C8D1…E7B94F20<br />
+            Memo: LiquidX/DocProof · anchored to DID:xrpl:rGguTpZQ…
+          </div>
+          <div className="flex gap-2 mt-auto">
+            {[
+              { l: "File stays local", c: "#22c55e" },
+              { l: "Hash on-chain", c: "#00e5cc" },
+              { l: "DID-linked", c: "#ffaa00" },
+            ].map((b) => (
+              <span key={b.l} className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ color: b.c, background: `${b.c}15`, border: `1px solid ${b.c}30` }}>{b.l}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slide: Roadmap & Improvements ───────────────────────────────────────────
+
+function SlideRoadmap() {
+  const phases = [
+    {
+      label: "Now · Devnet",
+      color: "#00e5cc",
+      status: "live",
+      items: [
+        "8 real XRPL txs (EscrowCreate/Finish, MPT, DID, Payment, LoanSet, LoanPay)",
+        "In-browser SHA-256 doc hashing — file never uploaded",
+        "Platform loan pricing formula (rate = base + risk + duration − collateral)",
+        "Validator approval flow with on-chain EscrowFinish",
+        "Zustand + Supabase persistence layer",
+      ],
+    },
+    {
+      label: "Q2 2026 · Mainnet",
+      color: "#0099ff",
+      status: "next",
+      items: [
+        "Move from devnet → XRPL mainnet (same code, change WSS endpoint)",
+        "Real USDC/stablecoin support via XRPL IOU or bridged USDC",
+        "KYC provider integration (Sumsub / Onfido) — replace manual DID link",
+        "First anchor validator onboarded (UAE notary partner)",
+        "10 pilot loans · $200K TVL target",
+      ],
+    },
+    {
+      label: "Q3 2026 · Scale",
+      color: "#a855f7",
+      status: "planned",
+      items: [
+        "Secondary market: MPT token trading between lenders",
+        "Dynamic rate feed: XRP volatility from Chainlink / XRPL AMM oracle",
+        "Multi-asset collateral: real estate + invoice + vehicle in same pool",
+        "Open Validator API: any licensed notary can register and earn fees",
+        "Mobile app (React Native) with XRPL wallet deep-link",
+      ],
+    },
+    {
+      label: "2027 · Global",
+      color: "#ffaa00",
+      status: "vision",
+      items: [
+        "Regulatory sandbox approvals: DIFC (UAE), MAS (Singapore), SEC lite",
+        "Cross-chain collateral: Ethereum ERC-20 assets settled on XRPL via bridge",
+        "Automated yield distribution — smart escrow replaces manual validator",
+        "B2B API: banks and fintechs embed LiquidX as white-label lending rails",
+        "1M+ borrowers across Africa, MENA, LatAm",
+      ],
+    },
+  ];
+
+  const improvements = [
+    { icon: Cpu, label: "Rate oracle", desc: "Replace static XRP_VOLATILITY with live Chainlink / XRPL AMM feed — rates auto-adjust every 4h" },
+    { icon: Database, label: "On-chain state", desc: "Move loan schedule from Zustand → XLS-66 LoanSet so any client can read it without our DB" },
+    { icon: Shield, label: "ZK proofs", desc: "Replace DID hash with ZK-proof of identity — verifies KYC without exposing which provider was used" },
+    { icon: GitBranch, label: "Cross-chain", desc: "Accept ETH/Polygon assets as collateral via XRPL EVM sidechain — single settlement layer" },
+  ];
+
+  return (
+    <div className="h-full flex flex-col px-10 py-6 gap-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Tag>Roadmap & Improvements</Tag>
+          <h2 className="text-5xl font-black text-white leading-tight">
+            What&apos;s next.
+          </h2>
+        </div>
+        <span className="text-[11px] font-mono text-white/20">11 / 13</span>
+      </div>
+
+      {/* Phase timeline */}
+      <div className="grid grid-cols-4 gap-3">
+        {phases.map((p) => (
+          <div key={p.label} className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: `${p.color}07`, border: `1px solid ${p.color}25` }}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-wide" style={{ color: p.color }}>{p.label}</p>
+              <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-full" style={{ color: p.color, background: `${p.color}18`, border: `1px solid ${p.color}30` }}>{p.status}</span>
+            </div>
+            <ul className="space-y-1.5">
+              {p.items.map((item, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <div className="h-1 w-1 rounded-full shrink-0 mt-1.5" style={{ background: p.color }} />
+                  <p className="text-[10px] text-white/50 leading-relaxed">{item}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {/* Key improvements */}
+      <div>
+        <p className="text-[10px] text-white/25 uppercase tracking-widest mb-2 font-semibold">Key technical improvements planned</p>
+        <div className="grid grid-cols-4 gap-3">
+          {improvements.map((imp) => {
+            const Icon = imp.icon;
+            return (
+              <div key={imp.label} className="rounded-xl border border-white/8 bg-white/[0.02] p-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5 text-[#00e5cc]" />
+                  <p className="text-xs font-bold text-white">{imp.label}</p>
+                </div>
+                <p className="text-[10px] text-white/40 leading-relaxed">{imp.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Slide map ────────────────────────────────────────────────────────────────
 
 const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
@@ -1368,6 +1619,8 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
   "xrpl-impl": SlideXRPLImpl,
   vault: SlideVault,
   identity: SlideIdentity,
+  "tech-deep": SlideTechDeep,
+  roadmap: SlideRoadmap,
   appendix: SlideAppendix,
   "real-vs-sim": SlideRealVsSim,
 };
