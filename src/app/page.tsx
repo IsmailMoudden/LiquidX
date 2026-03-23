@@ -165,7 +165,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features — bento */}
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-14">
@@ -177,21 +177,72 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <div key={feature.title} className="feature-card rounded-2xl p-7">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 mb-6">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
-                  <p className="text-sm text-white/40 leading-relaxed">
-                    {feature.description}
-                  </p>
+          <div className="grid grid-cols-3 gap-3">
+            {/* Row 1 — wide + narrow */}
+            <div className="col-span-2 rounded-2xl border border-white/8 bg-[#0d0d0d] p-8 relative overflow-hidden">
+              <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 bg-primary/6 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
+              <Zap className="h-6 w-6 text-primary mb-5" />
+              <h3 className="text-xl font-bold text-white mb-2">Tokenize Your Asset</h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-sm">Convert a real-world asset into on-chain tokens. This becomes your collateral — verifiable, auditable, and locked on XRPL.</p>
+              <div className="mt-7 flex gap-2 flex-wrap">
+                {["MPTokenIssuanceCreate", "XLS-33 ✓", "XRPL devnet"].map((t) => (
+                  <span key={t} className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] font-mono text-primary/80">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
+              <Shield className="h-6 w-6 text-primary mb-5" />
+              <h3 className="text-lg font-bold text-white mb-2">Validator Approval</h3>
+              <p className="text-sm text-white/40 leading-relaxed">Independent validator verifies compliance and collateral. No sign-off, no settlement.</p>
+              <div className="mt-5 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-emerald-400 font-medium">0.75–1% validator fee</span>
+              </div>
+            </div>
+
+            {/* Row 2 — narrow + wide */}
+            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
+              <Globe className="h-6 w-6 text-primary mb-5" />
+              <h3 className="text-lg font-bold text-white mb-2">Borrow in USDC</h3>
+              <p className="text-sm text-white/40 leading-relaxed">Borrow against your tokenized collateral at fixed rates. Funds released only after escrow conditions are met.</p>
+            </div>
+
+            <div className="col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
+              <div className="pointer-events-none absolute bottom-0 right-0 w-56 h-56 bg-primary/10 rounded-full translate-y-1/3 translate-x-1/4 blur-3xl" />
+              <TrendingUp className="h-6 w-6 text-primary mb-5" />
+              <h3 className="text-xl font-bold text-white mb-2">Fund Loans, Earn Yield</h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-sm">Lenders fund specific loan pools backed by real collateral. Fixed terms, fixed returns.</p>
+              <div className="mt-6 flex items-end gap-4">
+                <div>
+                  <p className="text-5xl font-black text-primary leading-none">5–12%</p>
+                  <p className="text-xs text-white/30 mt-1.5">annual yield · real-asset backed</p>
                 </div>
-              );
-            })}
+                <div className="ml-auto text-right">
+                  <p className="text-2xl font-bold text-white">$100</p>
+                  <p className="text-xs text-white/30">minimum to lend</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 3 — three equal */}
+            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
+              <Lock className="h-5 w-5 text-primary mb-4" />
+              <h3 className="font-bold text-white mb-2">Escrow-Protected</h3>
+              <p className="text-xs text-white/40 leading-relaxed">All capital held in XRPL escrow. Auto-returned if conditions aren't met. No counterparty risk.</p>
+            </div>
+
+            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
+              <BarChart3 className="h-5 w-5 text-primary mb-4" />
+              <h3 className="font-bold text-white mb-2">Full Audit Trail</h3>
+              <p className="text-xs text-white/40 leading-relaxed">Every origination, repayment, and settlement is on-chain with a public tx hash.</p>
+            </div>
+
+            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6 flex flex-col items-center justify-center text-center gap-2">
+              <p className="text-5xl font-black text-white">3–5s</p>
+              <p className="text-xs text-white/30 uppercase tracking-widest">XRPL finality</p>
+              <span className="text-[10px] font-mono text-primary/60 border border-primary/20 rounded-full px-2 py-0.5">EscrowCreate → confirmed</span>
+            </div>
           </div>
         </div>
       </section>
@@ -214,85 +265,80 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            {/* Borrowers */}
-            <div className="rounded-2xl border border-[#ffaa00]/20 bg-[#ffaa00]/5 p-8">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="h-10 w-10 rounded-xl bg-[#ffaa00]/15 border border-[#ffaa00]/25 flex items-center justify-center">
-                  <Globe className="h-5 w-5 text-[#ffaa00]" />
-                </div>
-                <div>
-                  <p className="font-bold text-white">If your bank said no.</p>
-                  <p className="text-xs text-white/35 mt-0.5">for borrowers</p>
-                </div>
+          {/* Bento: borrowers tall | lenders + green stacked */}
+          <div className="grid grid-cols-3 gap-3" style={{ gridTemplateRows: "auto auto" }}>
+            {/* Borrowers — tall, spans 2 rows */}
+            <div className="col-span-1 row-span-2 rounded-2xl border border-[#ffaa00]/20 bg-[#ffaa00]/5 p-8 flex flex-col">
+              <div className="h-11 w-11 rounded-xl bg-[#ffaa00]/15 border border-[#ffaa00]/25 flex items-center justify-center mb-6">
+                <Globe className="h-5 w-5 text-[#ffaa00]" />
               </div>
+              <p className="text-[10px] text-[#ffaa00]/60 uppercase tracking-widest mb-1">For borrowers</p>
+              <h3 className="text-xl font-bold text-white mb-4">If your bank said no.</h3>
               <p className="text-sm text-white/50 leading-relaxed mb-6">
-                You own a real asset. You need financing. But the bank denied you — because of your
-                nationality, your country, excessive paperwork, or simply because you don&apos;t fit
-                their credit model. LiquidX removes the middleman entirely.
+                You own a real asset. The bank denied you — nationality, paperwork, credit model.
+                LiquidX removes the middleman. Your asset is your credential.
               </p>
-              <ul className="space-y-2.5">
+              <ul className="space-y-3 flex-1">
                 {[
-                  "Your asset is your credential — not your passport",
-                  "No SWIFT. No correspondent bank. No credit bureau.",
-                  "DID-verified identity — on merit, not origin",
-                  "Collateral on-chain, terms transparent, no gatekeepers",
+                  "Asset is your credential — not your passport",
+                  "No SWIFT. No credit bureau.",
+                  "DID-verified identity — merit, not origin",
+                  "Collateral on-chain, terms transparent",
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/45">
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/50">
                     <div className="h-1.5 w-1.5 rounded-full bg-[#ffaa00] shrink-0 mt-1.5" />
                     {item}
                   </li>
                 ))}
               </ul>
-            </div>
-
-            {/* Lenders */}
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-8">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold text-white">If institutional yields were never for you.</p>
-                  <p className="text-xs text-white/35 mt-0.5">for lenders</p>
-                </div>
+              <div className="mt-8 rounded-xl bg-[#ffaa00]/10 border border-[#ffaa00]/20 p-4">
+                <p className="text-3xl font-black text-[#ffaa00]">1.4B</p>
+                <p className="text-xs text-white/30 mt-0.5">unbanked asset owners globally</p>
               </div>
-              <p className="text-sm text-white/50 leading-relaxed mb-6">
-                Private credit, real estate debt, infrastructure yield — these returns were reserved
-                for institutions and family offices with $1M+ minimums. LiquidX opens the same loan
-                pools from $100, to anyone, anywhere in the world.
-              </p>
-              <ul className="space-y-2.5">
-                {[
-                  "Minimum $100 — no accreditation required",
-                  "Same assets that institutions fund",
-                  "5–12% APY on verified real-world collateral",
-                  "Capital in escrow — auto-returned if deal falls through",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-white/45">
-                    <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
             </div>
-          </div>
 
-          {/* Green finance callout */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] px-6 py-5 flex items-start gap-4">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 mt-0.5">
-              <Leaf className="h-4 w-4 text-emerald-400" />
+            {/* Lenders — top right (col-span-2) */}
+            <div className="col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
+              <div className="pointer-events-none absolute top-0 right-0 w-48 h-48 bg-primary/8 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
+              <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center mb-6">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-[10px] text-primary/60 uppercase tracking-widest mb-1">For lenders</p>
+              <h3 className="text-xl font-bold text-white mb-3">If institutional yields were never for you.</h3>
+              <p className="text-sm text-white/50 leading-relaxed mb-5">
+                Private credit, real estate debt, infrastructure yield — reserved for $1M+ institutions. LiquidX opens the same pools from $100, anywhere in the world.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { stat: "$100", label: "Minimum — no accreditation" },
+                  { stat: "5–12%", label: "APY on verified collateral" },
+                  { stat: "Auto", label: "returned if deal falls through" },
+                  { stat: "Same", label: "assets institutions fund" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg bg-white/4 border border-white/8 px-3 py-2.5">
+                    <p className="text-base font-bold text-primary">{s.stat}</p>
+                    <p className="text-[10px] text-white/35 mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white mb-1">
-                Green infrastructure. Open to everyone.
-              </p>
-              <p className="text-sm text-white/45 leading-relaxed">
-                From offshore wind to solar — LiquidX lets anyone fund real-world green
-                infrastructure from $100. The Hornsea Wind Farm pool gives retail lenders access to
-                a government-backed CfD revenue stream from the world&apos;s largest offshore wind
-                farm. Same deal. Same yield. No institution required.
-              </p>
+
+            {/* Green — bottom right (col-span-2) */}
+            <div className="col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-7 flex items-center gap-6">
+              <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                <Leaf className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-400/60 uppercase tracking-widest mb-1">Social Impact</p>
+                <p className="font-bold text-white mb-1">Green infrastructure. Open to everyone.</p>
+                <p className="text-sm text-white/40 leading-relaxed">
+                  Offshore wind to solar — from $100. The Hornsea Wind Farm pool gives retail lenders access to a government-backed CfD revenue stream. Same deal. Same yield. No institution required.
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-3xl font-black text-emerald-400">$100</p>
+                <p className="text-[10px] text-white/25 mt-0.5">to fund green infra</p>
+              </div>
             </div>
           </div>
         </div>
