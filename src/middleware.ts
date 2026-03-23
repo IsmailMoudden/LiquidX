@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_ROUTES = ["/dashboard", "/lend", "/borrow", "/validator", "/tokenize", "/account"];
+// Only pages that truly require auth — lend/borrow/tokenize are browsable without account
+const PROTECTED_ROUTES = ["/dashboard", "/account", "/validator"];
 
 export async function middleware(request: NextRequest) {
   // Skip auth if Supabase env vars are not configured (e.g. during CI/build)

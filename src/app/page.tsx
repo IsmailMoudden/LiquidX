@@ -102,6 +102,13 @@ export default function LandingPage() {
             <Play className="h-3.5 w-3.5" />
             Borrow Against an Asset
           </Link>
+          <Link
+            href="/deck"
+            className="inline-flex items-center justify-center gap-2 h-12 px-7 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
+          >
+            <Play className="h-3.5 w-3.5 fill-primary" />
+            Demo
+          </Link>
         </div>
 
         {/* Dashboard preview card */}
