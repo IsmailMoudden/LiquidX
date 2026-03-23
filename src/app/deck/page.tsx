@@ -37,7 +37,6 @@ const SLIDES = [
   "cover",
   "problem",
   "solution",
-  "features",
   "xrpl-txs",
   "user-flows",
   "xrpl-impl",
@@ -45,7 +44,6 @@ const SLIDES = [
   "identity",
   "tech-deep",
   "roadmap",
-  "appendix",
   "real-vs-sim",
 ] as const;
 
@@ -55,7 +53,6 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   cover: "Cover",
   problem: "Problem",
   solution: "Solution",
-  features: "Track Fit",
   "xrpl-txs": "What's Live",
   "user-flows": "User Flows",
   "xrpl-impl": "On-chain Flow",
@@ -63,7 +60,6 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   identity: "Identity",
   "tech-deep": "Tech Deep Dive",
   roadmap: "Roadmap",
-  appendix: "Appendix",
   "real-vs-sim": "Real vs Sim",
 };
 
@@ -481,114 +477,6 @@ function SlideSolution() {
             </p>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SlideFeatures() {
-  const tracks = [
-    {
-      label: "Lending & Borrowing",
-      icon: TrendingUp,
-      color: "#00e5cc",
-      subtitle: "Full lending lifecycle, on-chain, auditable",
-      criteria: "Unlock real financial utility through decentralized lending primitives",
-      points: [
-        { tx: "EscrowCreate", live: true, desc: "Lender capital locked with FinishAfter — auto-refund if rejected" },
-        { tx: "EscrowFinish", live: true, desc: "Validator releases funds directly to asset owner's wallet" },
-        { tx: "LoanSet", live: true, desc: "Loan terms recorded on-chain, 256-bit loanId generated" },
-        { tx: "LoanPay", live: true, desc: "3 on-chain installments, each with explorer hash" },
-      ],
-      extra: "Rate = 5% base + risk + duration − collateral bonus ± XRP adj",
-    },
-    {
-      label: "Programmability",
-      icon: Code2,
-      color: "#0099ff",
-      subtitle: "Smart escrow, trustless multi-party settlement",
-      criteria: "Smart escrow + conditional payments + trustless workflows",
-      points: [
-        { tx: "FinishAfter condition", live: true, desc: "Escrow enforced by ledger — no smart contract, no gas risk" },
-        { tx: "3-wallet separation", live: true, desc: "Lender / Platform / Asset Owner — platform never holds funds" },
-        { tx: "escrowSequence pre-capture", live: true, desc: "account_info before submit — xrpl.js v4 workaround" },
-        { tx: "DestinationTag routing", live: true, desc: "One platform wallet, per-asset capital separation on-chain" },
-      ],
-      extra: "USD→XRP live via CoinGecko · DID server-side via account_objects",
-    },
-    {
-      label: "Social Impact",
-      icon: Globe,
-      color: "#a855f7",
-      subtitle: "Real-world inclusion through on-chain identity",
-      criteria: "XRPL to create meaningful change for the underserved",
-      points: [
-        { tx: "3B+ adults", live: null, desc: "Denied credit by geography — asset qualifies, person doesn't" },
-        { tx: "From $100", live: null, desc: "Same deals as institutions, no accreditation needed" },
-        { tx: "DIDSet", live: true, desc: "Identity on merit — not nationality, bank, or credit bureau" },
-        { tx: "Green infra", live: null, desc: "Fund wind, solar, infrastructure from $100, 5–12% APY" },
-      ],
-      extra: "Your asset is your credential — not your passport",
-    },
-  ];
-
-  return (
-    <div className="h-full flex flex-col px-10 py-8 gap-5">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <Tag>Track Alignment</Tag>
-          <h2 className="text-5xl font-black text-white leading-tight">
-            We fit all three tracks.
-          </h2>
-        </div>
-        <span className="text-[11px] font-mono text-white/20">04 / 11</span>
-      </div>
-
-      <div className="flex-1 grid grid-cols-3 gap-4">
-        {tracks.map((t) => {
-          const Icon = t.icon;
-          return (
-            <div key={t.label} className="rounded-2xl p-6 flex flex-col gap-4" style={{ background: `${t.color}07`, border: `1px solid ${t.color}25` }}>
-              {/* Header */}
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${t.color}20`, border: `1px solid ${t.color}40` }}>
-                  <Icon className="h-5 w-5" style={{ color: t.color }} />
-                </div>
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide" style={{ color: t.color }}>{t.label}</p>
-                  <p className="text-xs text-white/40 leading-tight">{t.subtitle}</p>
-                </div>
-              </div>
-
-              {/* Criteria quote */}
-              <div className="rounded-lg px-3 py-2.5" style={{ background: `${t.color}10`, border: `1px solid ${t.color}20` }}>
-                <p className="text-xs text-white/55 leading-relaxed italic">&quot;{t.criteria}&quot;</p>
-              </div>
-
-              {/* Points */}
-              <div className="flex flex-col gap-3 flex-1">
-                {t.points.map((p) => (
-                  <div key={p.tx} className="flex items-start gap-3">
-                    <div className="shrink-0 mt-0.5">
-                      {p.live === true && <CheckCircle2 className="h-4 w-4 text-green-400" />}
-                      {p.live === false && <Clock className="h-4 w-4 text-yellow-400" />}
-                      {p.live === null && <ArrowRight className="h-4 w-4" style={{ color: t.color }} />}
-                    </div>
-                    <div>
-                      <code className="text-xs font-mono font-bold" style={{ color: t.color }}>{p.tx}</code>
-                      <p className="text-xs text-white/45 leading-snug mt-0.5">{p.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Footer */}
-              <div className="rounded-lg px-3 py-2 mt-auto" style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${t.color}18` }}>
-                <p className="text-[11px] font-mono text-white/40">{t.extra}</p>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -1188,102 +1076,6 @@ function SlideIdentity() {
   );
 }
 
-function SlideAppendix() {
-  const stack = [
-    {
-      layer: "Frontend",
-      color: "#ffffff",
-      items: [
-        { name: "Next.js 15", detail: "App Router · SSR + RSC + client components" },
-        { name: "React 19", detail: "Client / Server component model" },
-        { name: "TypeScript", detail: "Strict mode throughout" },
-        { name: "TailwindCSS", detail: "Utility-first CSS system" },
-        { name: "Framer Motion", detail: "Page transitions and animations" },
-        { name: "Recharts", detail: "Portfolio allocation charts" },
-      ],
-    },
-    {
-      layer: "State",
-      color: "#ffaa00",
-      items: [
-        { name: "Zustand 5", detail: "Global store with localStorage persistence" },
-        { name: "liquidx-portfolio-v4", detail: "Persistence key (versioned)" },
-        { name: "Selective persist", detail: "Only portfolio slice is persisted" },
-      ],
-    },
-    {
-      layer: "Blockchain",
-      color: "#00e5cc",
-      items: [
-        { name: "xrpl.js v4.6", detail: "XRPL client — real-first / simulation fallback" },
-        { name: "XRPL testnet", detail: "wss://s.altnet.rippletest.net:51233" },
-        { name: "XLS-33 MPT", detail: "Multi-Purpose Token standard (pre-live)" },
-        { name: "XLS-66 Lending", detail: "LoanBroker, LoanSet, LoanPay (pre-live)" },
-        { name: "XRP DID", detail: "W3C Decentralized Identifier on XRPL" },
-      ],
-    },
-    {
-      layer: "Auth & Identity",
-      color: "#0099ff",
-      items: [
-        { name: "Supabase", detail: "Auth, user accounts, session management" },
-        { name: "TON Connect", detail: "Wallet authentication for trade actions" },
-        { name: "XRP DID (W3C)", detail: "On-chain identity anchor + KYC proof" },
-        { name: "kycStatus gate", detail: "Blocks tokenize entirely if not verified" },
-      ],
-    },
-  ];
-
-  return (
-    <div className="h-full flex flex-col px-10 py-8 gap-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <Tag>Appendix</Tag>
-          <h2 className="text-5xl font-black text-white leading-tight">Full stack.</h2>
-        </div>
-        <span className="text-[11px] font-mono text-white/20">10 / 11</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 flex-1">
-        {stack.map((s) => (
-          <div
-            key={s.layer}
-            className="rounded-2xl p-5 flex flex-col gap-3"
-            style={{
-              background: `linear-gradient(145deg, ${s.color}08 0%, #0a0a0a 60%)`,
-              border: `1px solid ${s.color}20`,
-            }}
-          >
-            <span
-              className="text-xs font-black tracking-[0.12em] uppercase"
-              style={{ color: s.color }}
-            >
-              {s.layer}
-            </span>
-            <div className="space-y-2">
-              {s.items.map((item) => (
-                <div key={item.name} className="flex items-start gap-3">
-                  <span
-                    className="inline-block rounded-md px-2 py-0.5 text-[10px] font-mono shrink-0 mt-0.5"
-                    style={{
-                      color: s.color,
-                      background: `${s.color}15`,
-                      border: `1px solid ${s.color}25`,
-                    }}
-                  >
-                    {item.name}
-                  </span>
-                  <span className="text-xs text-white/40 leading-relaxed">{item.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Appendix: Escrow Flow ────────────────────────────────────────────────────
 
 function SlideRealVsSim() {
@@ -1613,7 +1405,6 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
   cover: SlideCover,
   problem: SlideProblem,
   solution: SlideSolution,
-  features: SlideFeatures,
   "xrpl-txs": SlideXRPLTxs,
   "user-flows": SlideUserFlows,
   "xrpl-impl": SlideXRPLImpl,
@@ -1621,7 +1412,6 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
   identity: SlideIdentity,
   "tech-deep": SlideTechDeep,
   roadmap: SlideRoadmap,
-  appendix: SlideAppendix,
   "real-vs-sim": SlideRealVsSim,
 };
 
