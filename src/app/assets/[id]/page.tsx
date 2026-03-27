@@ -65,28 +65,28 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         Back to Loan Pools
       </Link>
 
+      {/* Hero + title — full width above the grid */}
+      <div className="mb-8 space-y-4">
+        <div className="relative h-64 sm:h-96 rounded-2xl overflow-hidden">
+          <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/90 via-transparent to-transparent" />
+          <div className="absolute bottom-5 left-5 flex items-center gap-2">
+            <CategoryBadge category={asset.category} />
+            <FundingStatusBadge status={asset.fundingStatus} />
+          </div>
+        </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{asset.name}</h1>
+          <div className="flex items-center gap-1.5 text-sm text-white/40">
+            <MapPin className="h-4 w-4" />
+            {asset.location}
+          </div>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Left */}
         <div className="lg:col-span-2 space-y-6 order-last lg:order-none">
-          {/* Hero */}
-          <div className="relative h-72 sm:h-96 rounded-2xl overflow-hidden">
-            <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/90 via-transparent to-transparent" />
-            <div className="absolute bottom-5 left-5 flex items-center gap-2">
-              <CategoryBadge category={asset.category} />
-              <FundingStatusBadge status={asset.fundingStatus} />
-            </div>
-          </div>
-
-          {/* Title */}
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{asset.name}</h1>
-            <div className="flex items-center gap-1.5 text-sm text-white/40">
-              <MapPin className="h-4 w-4" />
-              {asset.location}
-            </div>
-          </div>
-
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="rounded-xl border border-white/8 bg-[#0d0d0d] p-4">

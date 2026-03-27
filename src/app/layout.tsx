@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { TonProvider } from "@/components/providers/TonProvider";
 import { DeadlineWatcher } from "@/components/providers/DeadlineWatcher";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { AppShell } from "@/components/layout/AppShell";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "LiquidX — Fractional Real-World Assets",
