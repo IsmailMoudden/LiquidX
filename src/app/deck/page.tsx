@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -60,6 +60,9 @@ const SLIDE_LABELS: Record<SlideId, string> = {
   "tech-deep": "Tech Deep Dive",
   roadmap: "Roadmap",
 };
+
+const DESIGN_W = 1280;
+const DESIGN_H = 720;
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -1329,6 +1332,9 @@ const SLIDE_COMPONENTS: Record<SlideId, React.ComponentType> = {
 
 export default function DeckPage() {
   const [current, setCurrent] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const touchStartX = useRef(0);
 
   function prev() { setCurrent((c) => Math.max(0, c - 1)); }
   function next() { setCurrent((c) => Math.min(SLIDES.length - 1, c + 1)); }
@@ -1342,6 +1348,16 @@ export default function DeckPage() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      setScale(Math.min(el.clientWidth / DESIGN_W, el.clientHeight / DESIGN_H));
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   const slide = SLIDES[current];
   const SlideComponent = SLIDE_COMPONENTS[slide];
 
@@ -1349,54 +1365,72 @@ export default function DeckPage() {
     <div className="fixed inset-0 bg-[#080808] flex flex-col overflow-hidden">
       {/* Top bar */}
       <div
-        className="flex items-center justify-between px-6 py-3 shrink-0"
+        className="flex items-center justify-between px-4 py-2.5 shrink-0 gap-2"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-[#00e5cc] to-[#0099ff] flex items-center justify-center">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-[#00e5cc] to-[#0099ff] flex items-center justify-center shrink-0">
             <Zap className="h-3 w-3 text-black" />
           </div>
           <span className="text-white text-sm font-bold">
             Liquid<span className="text-[#00e5cc]">X</span>
           </span>
-          <span className="text-[10px] text-white/20 font-mono ml-2 uppercase tracking-widest">
+          <span className="hidden sm:block text-[10px] text-white/20 font-mono ml-1 uppercase tracking-widest">
             Hackathon Pitch · XRPL
           </span>
         </div>
 
         {/* Dot navigation */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-1 justify-center">
           {SLIDES.map((s, i) => (
             <button
               key={s}
               onClick={() => setCurrent(i)}
               title={SLIDE_LABELS[s]}
-              className="transition-all rounded-full"
+              className="transition-all rounded-full shrink-0"
               style={
                 i === current
-                  ? { height: 8, width: 24, background: "#00e5cc" }
-                  : { height: 8, width: 8, background: "rgba(255,255,255,0.15)" }
+                  ? { height: 6, width: 18, background: "#00e5cc" }
+                  : { height: 6, width: 6, background: "rgba(255,255,255,0.15)" }
               }
             />
           ))}
         </div>
 
-        <span className="text-[11px] font-mono text-white/25">
-          {SLIDE_LABELS[slide]} · {current + 1}/{SLIDES.length}
+        <span className="text-[11px] font-mono text-white/25 shrink-0">
+          {current + 1}<span className="hidden sm:inline">/{SLIDES.length}</span>
         </span>
       </div>
 
-      {/* Slide */}
-      <div className="flex-1 overflow-hidden">
-        <SlideComponent />
+      {/* Slide — scales to fit viewport */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-hidden relative flex items-center justify-center"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          const diff = touchStartX.current - e.changedTouches[0].clientX;
+          if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+        }}
+      >
+        <div
+          style={{
+            width: DESIGN_W,
+            height: DESIGN_H,
+            transform: `scale(${scale})`,
+            transformOrigin: "center center",
+            position: "absolute",
+          }}
+        >
+          <SlideComponent />
+        </div>
       </div>
 
       {/* Bottom bar */}
       <div
-        className="flex items-center justify-between px-6 py-3 shrink-0"
+        className="flex items-center justify-between px-4 py-2.5 shrink-0"
         style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
       >
-        {/* Slide names */}
+        {/* Slide names — desktop only */}
         <div className="hidden lg:flex items-center gap-1">
           {SLIDES.map((s, i) => (
             <button
@@ -1413,6 +1447,11 @@ export default function DeckPage() {
             </button>
           ))}
         </div>
+
+        {/* Current slide label — mobile */}
+        <span className="lg:hidden text-[11px] font-mono text-white/30">
+          {SLIDE_LABELS[slide]}
+        </span>
 
         {/* Arrows */}
         <div className="flex items-center gap-2 ml-auto">
