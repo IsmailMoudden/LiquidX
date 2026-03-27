@@ -177,9 +177,9 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Row 1 — wide + narrow */}
-            <div className="col-span-2 rounded-2xl border border-white/8 bg-[#0d0d0d] p-8 relative overflow-hidden">
+            <div className="sm:col-span-2 rounded-2xl border border-white/8 bg-[#0d0d0d] p-8 relative overflow-hidden">
               <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 bg-primary/6 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
               <Zap className="h-6 w-6 text-primary mb-5" />
               <h3 className="text-xl font-bold text-white mb-2">Tokenize Your Asset</h3>
@@ -191,7 +191,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
+            <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
               <Shield className="h-6 w-6 text-primary mb-5" />
               <h3 className="text-lg font-bold text-white mb-2">Validator Approval</h3>
               <p className="text-sm text-white/40 leading-relaxed">Independent validator verifies compliance and collateral. No sign-off, no settlement.</p>
@@ -202,13 +202,13 @@ export default function LandingPage() {
             </div>
 
             {/* Row 2 — narrow + wide */}
-            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
+            <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-7">
               <Globe className="h-6 w-6 text-primary mb-5" />
               <h3 className="text-lg font-bold text-white mb-2">Borrow in USDC</h3>
               <p className="text-sm text-white/40 leading-relaxed">Borrow against your tokenized collateral at fixed rates. Funds released only after escrow conditions are met.</p>
             </div>
 
-            <div className="col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
+            <div className="sm:col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
               <div className="pointer-events-none absolute bottom-0 right-0 w-56 h-56 bg-primary/10 rounded-full translate-y-1/3 translate-x-1/4 blur-3xl" />
               <TrendingUp className="h-6 w-6 text-primary mb-5" />
               <h3 className="text-xl font-bold text-white mb-2">Fund Loans, Earn Yield</h3>
@@ -226,19 +226,19 @@ export default function LandingPage() {
             </div>
 
             {/* Row 3 — three equal */}
-            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
+            <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
               <Lock className="h-5 w-5 text-primary mb-4" />
               <h3 className="font-bold text-white mb-2">Escrow-Protected</h3>
               <p className="text-xs text-white/40 leading-relaxed">All capital held in XRPL escrow. Auto-returned if conditions aren't met. No counterparty risk.</p>
             </div>
 
-            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
+            <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6">
               <BarChart3 className="h-5 w-5 text-primary mb-4" />
               <h3 className="font-bold text-white mb-2">Full Audit Trail</h3>
               <p className="text-xs text-white/40 leading-relaxed">Every origination, repayment, and settlement is on-chain with a public tx hash.</p>
             </div>
 
-            <div className="col-span-1 rounded-2xl border border-white/8 bg-[#0d0d0d] p-6 flex flex-col items-center justify-center text-center gap-2">
+            <div className="rounded-2xl border border-white/8 bg-[#0d0d0d] p-6 flex flex-col items-center justify-center text-center gap-2">
               <p className="text-5xl font-black text-white">3–5s</p>
               <p className="text-xs text-white/30 uppercase tracking-widest">XRPL finality</p>
               <span className="text-[10px] font-mono text-primary/60 border border-primary/20 rounded-full px-2 py-0.5">EscrowCreate → confirmed</span>
@@ -266,9 +266,9 @@ export default function LandingPage() {
           </div>
 
           {/* Bento: borrowers tall | lenders + green stacked */}
-          <div className="grid grid-cols-3 gap-3" style={{ gridTemplateRows: "auto auto" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ gridTemplateRows: "auto auto" }}>
             {/* Borrowers — tall, spans 2 rows */}
-            <div className="col-span-1 row-span-2 rounded-2xl border border-[#ffaa00]/20 bg-[#ffaa00]/5 p-8 flex flex-col">
+            <div className="sm:row-span-2 rounded-2xl border border-[#ffaa00]/20 bg-[#ffaa00]/5 p-8 flex flex-col">
               <div className="h-11 w-11 rounded-xl bg-[#ffaa00]/15 border border-[#ffaa00]/25 flex items-center justify-center mb-6">
                 <Globe className="h-5 w-5 text-[#ffaa00]" />
               </div>
@@ -298,7 +298,7 @@ export default function LandingPage() {
             </div>
 
             {/* Lenders — top right (col-span-2) */}
-            <div className="col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
+            <div className="sm:col-span-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 to-transparent p-8 relative overflow-hidden">
               <div className="pointer-events-none absolute top-0 right-0 w-48 h-48 bg-primary/8 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
               <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center mb-6">
                 <TrendingUp className="h-5 w-5 text-primary" />
@@ -324,7 +324,7 @@ export default function LandingPage() {
             </div>
 
             {/* Green — bottom right (col-span-2) */}
-            <div className="col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-7 flex items-center gap-6">
+            <div className="sm:col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-7 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
                 <Leaf className="h-5 w-5 text-emerald-400" />
               </div>
@@ -335,7 +335,7 @@ export default function LandingPage() {
                   Offshore wind to solar — from $100. The Hornsea Wind Farm pool gives retail lenders access to a government-backed CfD revenue stream. Same deal. Same yield. No institution required.
                 </p>
               </div>
-              <div className="shrink-0 text-right">
+              <div className="sm:shrink-0 sm:text-right">
                 <p className="text-3xl font-black text-emerald-400">$100</p>
                 <p className="text-[10px] text-white/25 mt-0.5">to fund green infra</p>
               </div>
