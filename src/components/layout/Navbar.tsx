@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useIdentityStore, selectDidVerified, selectDisplayDid } from "@/store/identity-store";
-import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, FlaskConical, User, LogOut, ChevronDown } from "lucide-react";
+import { Zap, Shield, TrendingUp, Banknote, BarChart3, Layers, ShieldCheck, FlaskConical, User, LogOut, ChevronDown, Menu, X } from "lucide-react";
 
 const navLinks = [
   { href: "/lend", label: "Lend", icon: TrendingUp },
@@ -26,6 +26,7 @@ export function Navbar() {
   const didVerified = useIdentityStore(selectDidVerified);
   const displayDid = useIdentityStore(selectDisplayDid);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function Navbar() {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {/* DID verified badge */}
               {didVerified && displayDid && (
                 <Link
@@ -104,6 +105,15 @@ export function Navbar() {
                   </span>
                 </div>
               )}
+
+              {/* Hamburger — mobile only */}
+              <button
+                className="md:hidden p-2 rounded-lg text-white/50 hover:text-white/80 transition-colors"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
 
               {/* Validator icon */}
               <Link
@@ -166,6 +176,41 @@ export function Navbar() {
             </div>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/8 px-3 py-3 space-y-1">
+            {navLinks.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                  pathname === href
+                    ? "text-white bg-white/10"
+                    : "text-white/50 hover:text-white hover:bg-white/5"
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+            ))}
+            <Link
+              href="/validator"
+              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                pathname === "/validator"
+                  ? "text-white bg-white/10"
+                  : "text-white/50 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              Validator
+            </Link>
+          </div>
+        )}
       </div>
     </nav>
   );
