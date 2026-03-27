@@ -1368,7 +1368,7 @@ export default function DeckPage() {
         className="flex items-center justify-between px-4 py-2.5 shrink-0 gap-2"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="flex items-center gap-2 shrink-0">
+        <a href="/" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
           <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-[#00e5cc] to-[#0099ff] flex items-center justify-center shrink-0">
             <Zap className="h-3 w-3 text-black" />
           </div>
@@ -1378,7 +1378,7 @@ export default function DeckPage() {
           <span className="hidden sm:block text-[10px] text-white/20 font-mono ml-1 uppercase tracking-widest">
             Hackathon Pitch · XRPL
           </span>
-        </div>
+        </a>
 
         {/* Dot navigation */}
         <div className="flex items-center gap-1 flex-1 justify-center">
