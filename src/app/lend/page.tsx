@@ -347,8 +347,8 @@ export default function LendPage() {
           </div>
 
           {/* Status + search + sort */}
-          <div className="flex flex-wrap gap-3 mb-5">
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-5">
+            <div className="flex gap-2 flex-wrap">
               {STATUS_FILTERS.map((s) => {
                 const Icon = s.icon;
                 const isActive = statusFilter === s.value;
@@ -366,8 +366,8 @@ export default function LendPage() {
                 );
               })}
             </div>
-            <div className="flex gap-2 flex-1">
-              <div className="relative flex-1 min-w-[200px]">
+            <div className="flex gap-2 flex-1 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <Input
                   placeholder="Search loan pools..."

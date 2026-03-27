@@ -67,7 +67,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Left */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 order-last lg:order-none">
           {/* Hero */}
           <div className="relative h-72 sm:h-96 rounded-2xl overflow-hidden">
             <Image src={asset.image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"} alt={asset.name} fill className="object-cover" />
@@ -156,12 +156,12 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               </h2>
               <div className="space-y-3">
                 {/* DID verification badge */}
-                <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                <div className={`flex items-start justify-between rounded-xl border px-4 py-3 gap-3 ${
                   asset.proofOfOwnership.didVerified
                     ? "border-emerald-500/20 bg-emerald-500/5"
                     : "border-yellow-500/20 bg-yellow-500/5"
                 }`}>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
                     {asset.proofOfOwnership.didVerified
                       ? <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
                       : <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
@@ -177,7 +177,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <Link
                     href="/trust"
-                    className="shrink-0 flex items-center gap-1 text-xs text-primary hover:underline ml-4"
+                    className="shrink-0 flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     Trust page <ExternalLink className="h-3 w-3" />
                   </Link>
@@ -266,7 +266,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Right — funding + validator panel */}
-        <div className="space-y-5">
+        <div className="space-y-5 order-first lg:order-none">
           {/* My Position — only shown when user has invested */}
           {myActiveInvestments.length > 0 && (
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
